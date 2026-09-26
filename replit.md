@@ -1,6 +1,6 @@
-# [Project name]
+# SavidhanSamraksha
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+AI-powered MPLADS monitoring and risk intelligence for scoped public infrastructure oversight.
 
 ## Run & Operate
 
@@ -22,23 +22,34 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/savidhan-samraksha` — React/Vite web application with authority login, scoped dashboard, project explorer, evidence detail, workflow actions, and audit history.
+- `artifacts/api-server/src/routes` — Express API routes for auth, administration, dashboard analytics, projects, and audit history.
+- `artifacts/api-server/src/lib/seed.ts` — deterministic synthetic India hierarchy, users, agencies, projects, findings, payments, photos, and audit seed data.
+- `lib/api-spec/openapi.yaml` — API source of truth; generated client hooks and Zod schemas are derived from it.
+- `lib/db/src/schema` — Drizzle/PostgreSQL schema for users, administrative hierarchy, agencies, projects, evidence, payments, and flag actions.
+- `artifacts/savidhan-samraksha/src/index.css` — application theme and governance-room visual tokens.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The app uses a signed, HTTP-only JWT-style session cookie for the synthetic demo identities because the prototype must support working role/scope flows without an external identity provider.
+- Scope authorization is enforced in API queries, not only in the frontend: ministry is national, state is state-bound, district is district-bound, and MP is constituency-bound/read-only.
+- Satellite findings are always labelled simulated or inconclusive; the system does not present unavailable imagery as a negative finding.
+- Risk evidence is stored as modular flags and returned as separate Financial & Temporal, Visual & Spatial, and Satellite module results so future adapters can replace demo logic without changing the product surface.
+- The seed dataset intentionally uses valid foreign-key relationships and a small set of deterministic anomaly patterns so the demo remains reproducible.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+SavidhanSamraksha provides a governed monitoring room for Ministry, State Nodal, District Nodal, and MP authorities. Users can sign in with synthetic demo accounts, view scoped project analytics, inspect risk findings and evidence, take authorized workflow actions with required reasons, and review an auditable history. MP users are strictly read-only.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+The user asked for a realistic, polished, demonstrable government/enterprise monitoring platform using synthetic data only.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The API server seeds the development database on first startup; changing seed rules requires a fresh database or an explicit data correction.
+- Demo credentials all use `Demo@123`; the exact accounts are shown in the login screen and `/api/auth/demo`.
+- Run API code changes through the managed `artifacts/api-server: API Server` workflow and web changes through `artifacts/savidhan-samraksha: web`.
 
 ## Pointers
 

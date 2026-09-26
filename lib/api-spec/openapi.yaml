@@ -3,20 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SavidhanSamraksha MPLADS monitoring and risk intelligence API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: administration
+  - name: dashboard
+  - name: projects
+  - name: audit
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +27,654 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Authenticate a synthetic authority user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+  /auth/demo:
+    get:
+      operationId: getDemoAccounts
+      tags: [auth]
+      summary: List safe demo account labels
+      responses:
+        "200":
+          description: Demo accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DemoAccount"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current session user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Logged out
+  /administration/states:
+    get:
+      operationId: listStates
+      tags: [administration]
+      summary: List Indian states and union territories
+      responses:
+        "200":
+          description: States
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StateOption"
+  /administration/states/{stateCode}/districts:
+    get:
+      operationId: listDistricts
+      tags: [administration]
+      summary: List districts for a state
+      parameters:
+        - $ref: "#/components/parameters/StateCode"
+      responses:
+        "200":
+          description: Districts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DistrictOption"
+  /administration/states/{stateCode}/constituencies:
+    get:
+      operationId: listConstituencies
+      tags: [administration]
+      summary: List parliamentary constituencies for a state
+      parameters:
+        - $ref: "#/components/parameters/StateCode"
+      responses:
+        "200":
+          description: Constituencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConstituencyOption"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get scoped dashboard analytics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Not authenticated
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects within the signed-in authority scope
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: stateCode
+          in: query
+          schema:
+            type: string
+        - name: districtId
+          in: query
+          schema:
+            type: string
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+            enum: [HIGH, MODERATE, LOW, DATA_INCOMPLETE]
+        - name: workflowStatus
+          in: query
+          schema:
+            type: string
+            enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, CLOSED]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: fiscalYear
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: Scoped projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+        "401":
+          description: Not authenticated
+  /projects/{workId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project with findings and evidence
+      parameters:
+        - $ref: "#/components/parameters/WorkId"
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "403":
+          description: Project outside authority scope
+        "404":
+          description: Project not found
+  /projects/{workId}/actions:
+    post:
+      operationId: createProjectAction
+      tags: [projects]
+      summary: Apply an authorized workflow action
+      parameters:
+        - $ref: "#/components/parameters/WorkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectActionInput"
+      responses:
+        "200":
+          description: Updated project workflow
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectActionResult"
+        "400":
+          description: Invalid transition or missing reason
+        "403":
+          description: Authority cannot perform this action
+  /projects/{workId}/audit:
+    get:
+      operationId: listProjectAudit
+      tags: [audit]
+      summary: Get project audit history
+      parameters:
+        - $ref: "#/components/parameters/WorkId"
+      responses:
+        "200":
+          description: Audit history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
+        "403":
+          description: Project outside authority scope
+  /audit/recent:
+    get:
+      operationId: listRecentAudit
+      tags: [audit]
+      summary: Get recent scoped audit activity
+      responses:
+        "200":
+          description: Recent audit activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
+
 components:
+  parameters:
+    StateCode:
+      name: stateCode
+      in: path
+      required: true
+      schema:
+        type: string
+    WorkId:
+      name: workId
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
-
+      required: [status]
+    LoginInput:
+      type: object
+      properties:
+        authority:
+          type: string
+          enum: [MINISTRY, STATE_NODAL, DISTRICT_AUTHORITY, MP]
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        stateCode:
+          type: ["string", "null"]
+        districtId:
+          type: ["string", "null"]
+        constituencyId:
+          type: ["string", "null"]
+        parliamentaryCategory:
+          type: ["string", "null"]
+      required: [authority, username, password]
+    AuthSession:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+      required: [user]
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        fullName:
+          type: string
+        username:
+          type: string
+        designation:
+          type: string
+        role:
+          type: string
+          enum: [MINISTRY, STATE_NODAL, DISTRICT_AUTHORITY, MP]
+        scopeLabel:
+          type: string
+        stateCode:
+          type: ["string", "null"]
+        districtId:
+          type: ["string", "null"]
+        constituencyId:
+          type: ["string", "null"]
+        readOnly:
+          type: boolean
+      required: [id, fullName, username, designation, role, scopeLabel, readOnly]
+    DemoAccount:
+      type: object
+      properties:
+        label:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        authority:
+          type: string
+          enum: [MINISTRY, STATE_NODAL, DISTRICT_AUTHORITY, MP]
+        scopeLabel:
+          type: string
+      required: [label, username, password, authority, scopeLabel]
+    StateOption:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        districtCount:
+          type: integer
+      required: [code, name, districtCount]
+    DistrictOption:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stateCode:
+          type: string
+      required: [id, name, stateCode]
+    ConstituencyOption:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stateCode:
+          type: string
+      required: [id, name, stateCode]
+    DashboardSummary:
+      type: object
+      properties:
+        scopeLabel:
+          type: string
+        syntheticLabel:
+          type: string
+        totals:
+          $ref: "#/components/schemas/DashboardTotals"
+        riskDistribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountPoint"
+        statusDistribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountPoint"
+        categoryDistribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountPoint"
+        fiscalTrend:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrendPoint"
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+      required: [scopeLabel, syntheticLabel, totals, riskDistribution, statusDistribution, categoryDistribution, fiscalTrend, recentActivity]
+    DashboardTotals:
+      type: object
+      properties:
+        totalProjects:
+          type: integer
+        sanctionedAmount:
+          type: number
+        expenditure:
+          type: number
+        highRisk:
+          type: integer
+        moderateRisk:
+          type: integer
+        lowRisk:
+          type: integer
+        dataIncomplete:
+          type: integer
+        averageProgress:
+          type: number
+      required: [totalProjects, sanctionedAmount, expenditure, highRisk, moderateRisk, lowRisk, dataIncomplete, averageProgress]
+    CountPoint:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: integer
+      required: [label, value]
+    TrendPoint:
+      type: object
+      properties:
+        label:
+          type: string
+        projects:
+          type: integer
+        expenditure:
+          type: number
+      required: [label, projects, expenditure]
+    ProjectListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectListItem"
+        total:
+          type: integer
+      required: [items, total]
+    ProjectListItem:
+      type: object
+      properties:
+        workId:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        state:
+          type: string
+        district:
+          type: string
+        agency:
+          type: string
+        sanctionedAmount:
+          type: number
+        expenditure:
+          type: number
+        physicalProgress:
+          type: number
+        riskScore:
+          type: integer
+        riskLevel:
+          type: string
+          enum: [HIGH, MODERATE, LOW, DATA_INCOMPLETE]
+        workflowStatus:
+          type: string
+          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, CLOSED]
+        fiscalYear:
+          type: string
+        updatedAt:
+          type: string
+      required: [workId, description, category, state, district, agency, sanctionedAmount, expenditure, physicalProgress, riskScore, riskLevel, workflowStatus, fiscalYear, updatedAt]
+    ProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProjectListItem"
+        - type: object
+          properties:
+            mpName:
+              type: string
+            mpCategory:
+              type: string
+            mpConstituency:
+              type: string
+            estimatedCost:
+              type: number
+            dateOfSanction:
+              type: string
+            expectedCompletionDate:
+              type: string
+            actualCompletionDate:
+              type: ["string", "null"]
+            tenderInvited:
+              type: boolean
+            ucFiled:
+              type: boolean
+            dataCompleteness:
+              type: string
+              enum: [COMPLETE, PARTIAL, INCOMPLETE]
+            agencyType:
+              type: string
+            agencyStateLevel:
+              type: boolean
+            paymentTotal:
+              type: number
+            progressUpdates:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProgressUpdate"
+            findings:
+              type: array
+              items:
+                $ref: "#/components/schemas/RiskFinding"
+            modules:
+              type: array
+              items:
+                $ref: "#/components/schemas/ModuleResult"
+            photos:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProjectPhoto"
+            payments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Payment"
+          required: [mpName, mpCategory, mpConstituency, estimatedCost, dateOfSanction, expectedCompletionDate, tenderInvited, ucFiled, dataCompleteness, agencyType, agencyStateLevel, paymentTotal, progressUpdates, findings, modules, photos, payments]
+    ProgressUpdate:
+      type: object
+      properties:
+        date:
+          type: string
+        stage:
+          type: string
+        progress:
+          type: number
+        note:
+          type: string
+      required: [date, stage, progress, note]
+    RiskFinding:
+      type: object
+      properties:
+        severity:
+          type: string
+          enum: [HIGH, MODERATE, LOW, ADVISORY, INCONCLUSIVE]
+        title:
+          type: string
+        explanation:
+          type: string
+        evidence:
+          type: string
+        module:
+          type: string
+      required: [severity, title, explanation, evidence, module]
+    ModuleResult:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [AVAILABLE, PARTIAL, INCONCLUSIVE, INSUFFICIENT_DATA]
+        score:
+          type: ["number", "null"]
+        summary:
+          type: string
+        evidence:
+          type: array
+          items:
+            type: string
+      required: [name, status, summary, evidence]
+    ProjectPhoto:
+      type: object
+      properties:
+        id:
+          type: string
+        stage:
+          type: string
+        date:
+          type: string
+        uploader:
+          type: string
+        gpsStatus:
+          type: string
+        exifStatus:
+          type: string
+        duplicateStatus:
+          type: string
+        imageUrl:
+          type: string
+      required: [id, stage, date, uploader, gpsStatus, exifStatus, duplicateStatus, imageUrl]
+    Payment:
+      type: object
+      properties:
+        tranche:
+          type: string
+        date:
+          type: string
+        amount:
+          type: number
+        approver:
+          type: string
+        submittedBy:
+          type: string
+      required: [tranche, date, amount, approver, submittedBy]
+    ProjectActionInput:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [RESOLVE, DISMISS, ESCALATE, CLOSE, REVIEW]
+        reason:
+          type: string
+          minLength: 5
+      required: [action, reason]
+    ProjectActionResult:
+      type: object
+      properties:
+        workId:
+          type: string
+        workflowStatus:
+          type: string
+          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, CLOSED]
+        audit:
+          $ref: "#/components/schemas/AuditEntry"
+      required: [workId, workflowStatus, audit]
+    AuditEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        workId:
+          type: string
+        userName:
+          type: string
+        role:
+          type: string
+        action:
+          type: string
+        timestamp:
+          type: string
+        reason:
+          type: string
+        fromStatus:
+          type: ["string", "null"]
+        toStatus:
+          type: ["string", "null"]
+      required: [id, workId, userName, role, action, timestamp, reason]

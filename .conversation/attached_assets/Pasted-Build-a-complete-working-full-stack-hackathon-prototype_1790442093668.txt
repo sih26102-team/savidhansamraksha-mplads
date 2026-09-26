@@ -1,0 +1,1415 @@
+Build a complete working full-stack hackathon prototype called:
+
+# SavidhanSamraksha
+
+Subtitle:
+
+**AI-Powered MPLADS Monitoring & Risk Intelligence System**
+
+This is a prototype for the official problem statement:
+
+Development of an AI-powered system to detect anomalies, fraud, and inefficiencies in MPLADS Scheme implementation.
+
+The goal is to build a realistic, polished, demonstrable government/enterprise monitoring platform.
+
+Do NOT build only a static UI. Build the frontend, backend, database, authentication, role-based access, synthetic data, ML/anomaly engine, project workflow and audit trail.
+
+---
+
+# 1. BRANDING
+
+## Project Name
+
+**SavidhanSamraksha**
+
+Use this exact spelling and capitalization everywhere.
+
+## Logo
+
+Create an ORIGINAL professional logo automatically.
+
+Do not ask me to upload a logo.
+
+The logo should visually communicate:
+
+- constitutional/governance protection
+- transparency
+- public infrastructure
+- monitoring
+- AI/data intelligence
+- accountability
+
+Possible visual language:
+
+- abstract shield
+- subtle document/constitutional motif
+- infrastructure/network nodes
+- analytical/data element
+
+Do NOT copy or imitate the official Government of India emblem.
+
+The logo should work in:
+
+- login page
+- navbar
+- sidebar
+- favicon
+- dashboard
+
+Use the generated logo consistently throughout the application.
+
+---
+
+# 2. DESIGN LANGUAGE
+
+The application must look like a serious Indian government/enterprise monitoring system.
+
+Do NOT make it look like:
+
+- a startup landing page
+- a gaming dashboard
+- a crypto dashboard
+- a flashy AI website
+
+Use:
+
+- dark navy
+- white
+- light gray
+- professional blue
+
+Risk colors:
+
+HIGH = red
+MODERATE = amber
+LOW = green
+DATA INCOMPLETE = gray
+ESCALATED = purple
+
+Use generous whitespace, clean tables, clear typography and professional cards.
+
+---
+
+# 3. LANDING PAGE
+
+When the website opens, display:
+
+[Generated SavidhanSamraksha Logo]
+
+# SavidhanSamraksha
+
+### AI-Powered MPLADS Monitoring & Risk Intelligence System
+
+Short description:
+
+"Intelligent monitoring, anomaly detection and decision support for transparent and accountable implementation of MPLADS works."
+
+Then display:
+
+## Select Your Authority
+
+Four large professional cards:
+
+### Ministry Administration
+National monitoring and oversight
+
+### State Nodal Authority
+State-level monitoring and coordination
+
+### District Nodal Officer
+District-level implementation monitoring
+
+### Member of Parliament
+Read-only monitoring of recommended works
+
+Each card should have a suitable icon.
+
+---
+
+# 4. LOGIN WORKFLOW
+
+## MINISTRY
+
+Select:
+
+Ministry Administration
+
+Then:
+
+User ID
+Password
+
+After authentication:
+
+Role = MINISTRY
+Scope = NATIONAL
+
+Ministry can see all projects.
+
+---
+
+# 5. STATE NODAL AUTHORITY
+
+Select:
+
+State Nodal Authority
+
+First:
+
+Select State
+
+Provide all 36 States/UTs.
+
+Then:
+
+User ID
+Password
+
+After authentication:
+
+Role = STATE_NODAL
+Scope = selected state
+
+State user sees only projects belonging to their state plus issues escalated to their state.
+
+---
+
+# 6. DISTRICT NODAL OFFICER
+
+Select:
+
+District Nodal Officer
+
+First:
+
+Select State
+
+Then:
+
+Select District
+
+IMPORTANT:
+
+The district dropdown MUST dynamically depend on the selected state.
+
+Example:
+
+Andhra Pradesh → only Andhra Pradesh districts
+
+Telangana → only Telangana districts
+
+Maharashtra → only Maharashtra districts
+
+etc.
+
+Do not show districts from other states.
+
+Then:
+
+User ID
+Password
+
+After authentication:
+
+Role = DISTRICT_AUTHORITY
+Scope = selected district
+
+District user sees only projects belonging to that district.
+
+---
+
+# 7. MEMBER OF PARLIAMENT
+
+Select:
+
+Member of Parliament
+
+Then show:
+
+### Parliamentary Category
+
+- Lok Sabha
+- Rajya Sabha
+- Nominated
+
+## Lok Sabha
+
+Select State
+
+Select Constituency
+
+User ID
+
+Password
+
+Scope = selected constituency
+
+## Rajya Sabha
+
+Select State
+
+User ID
+
+Password
+
+Scope = relevant Rajya Sabha scope
+
+## Nominated
+
+Select appropriate scope
+
+User ID
+
+Password
+
+MP users are strictly READ ONLY.
+
+They can inspect projects and ML findings but cannot:
+
+- resolve
+- dismiss
+- escalate
+- close
+- modify project information
+
+---
+
+# 8. USERS
+
+Create exactly:
+
+10 Ministry users
+
+72 State Nodal Authority users
+
+780 District Nodal Officers
+
+788 MP users
+
+TOTAL:
+
+**1,650 synthetic users**
+
+Use realistic Indian names.
+
+Do not use:
+
+User001
+User002
+Test User
+Demo User
+
+unless specifically used for clearly marked demo accounts.
+
+Create realistic:
+
+- full name
+- user ID
+- username
+- designation
+- role
+- state
+- district
+- constituency
+- password hash
+- scope
+
+Use synthetic data only.
+
+---
+
+# 9. DEMO ACCOUNTS
+
+Create working demo accounts.
+
+Display a small:
+
+"Demo Access"
+
+button/link on the login page.
+
+Provide:
+
+MINISTRY
+ministry.demo
+Demo@123
+
+STATE
+state.ap.demo
+Demo@123
+
+DISTRICT
+district.ap.demo
+Demo@123
+
+MP
+mp.demo
+Demo@123
+
+These accounts must actually work.
+
+---
+
+# 10. ADMINISTRATIVE DATA
+
+Create a proper India administrative hierarchy.
+
+Include:
+
+- 36 States/UTs
+- districts mapped to correct states
+- parliamentary constituencies
+- MP scopes
+
+State → District must be a real relationship in the database.
+
+Do not randomly assign districts.
+
+---
+
+# 11. AGENCIES
+
+Create an AGENCIES master/reference table.
+
+Fields:
+
+agency_id
+agency_name
+agency_type
+state_code
+district_id
+is_state_level
+is_active
+
+Use realistic Indian implementing agencies.
+
+Examples:
+
+Public Works Department
+
+Panchayat Raj & Rural Development Department
+
+Rural Water Supply & Sanitation Department
+
+School Education Department
+
+Health & Family Welfare Department
+
+Public Health Engineering Department
+
+Roads & Buildings Department
+
+Zilla Parishad
+
+Municipal Corporation
+
+Municipal Council
+
+District Rural Development Agency
+
+Rural Development Department
+
+Important:
+
+Do NOT create fake generic names such as:
+
+Agency 001
+Agency A
+Agency 002
+
+State-level departments may legitimately operate across multiple districts.
+
+District/local bodies should be geographically tied to their districts.
+
+Use realistic synthetic variation:
+
+Large districts: approximately 10–20 active agencies
+
+Medium districts: approximately 7–15
+
+Small districts: approximately 5–10
+
+These are synthetic modelling assumptions for the prototype, NOT claims of an official fixed MPLADS average.
+
+---
+
+# 12. PROJECT DATABASE
+
+Create approximately:
+
+**8,000–10,000 synthetic MPLADS projects**
+
+Use realistic project data.
+
+Each project should contain:
+
+work_id
+mp_id
+state
+district
+agency_id
+work_description
+work_category
+fiscal_year
+estimated_cost
+sanctioned_amount
+expenditure_incurred
+physical_progress_pct
+date_of_sanction
+expected_completion_date
+actual_completion_date
+status
+tender_invited
+uc_filed
+risk_score
+risk_level
+data_completeness
+workflow_status
+
+Project categories should include realistic categories such as:
+
+- Roads
+- Community Halls
+- Drinking Water
+- Sanitation
+- Drainage
+- Education
+- Health
+- Public Amenities
+- Civic Infrastructure
+- Other eligible public infrastructure
+
+Generate realistic Indian project descriptions and locations.
+
+---
+
+# 13. PROJECT DATA MUST BE INTERNALLY CONSISTENT
+
+Do NOT randomly generate disconnected records.
+
+Ensure:
+
+Project → valid State
+
+Project → valid District
+
+District → correct State
+
+Project → valid Agency
+
+Project → valid MP
+
+MP → valid constituency/scope
+
+Agency → valid geographic scope
+
+Progress → plausible timeline
+
+Expenditure → cannot randomly exceed sanctioned amount unless deliberately injected as an anomaly
+
+---
+
+# 14. INJECT REALISTIC SYNTHETIC ANOMALIES
+
+Create normal projects as well as anomalous projects.
+
+Approximately 8–10% can contain intentional anomaly patterns for demonstration.
+
+Include:
+
+- cost-per-unit outlier
+- cost overrun
+- expenditure/progress mismatch
+- delayed project
+- dormant project
+- near-duplicate work
+- cross-cycle duplicate asset
+- ineligible category
+- no-tender case
+- missing utilization certificate
+- unusual agency utilization pattern
+- repeated agency/contractor concentration
+- repeated agency + approver overlap
+- missing project data
+- suspicious progress-photo reuse
+
+Also create legitimate ON_HOLD projects such as:
+
+- land dispute
+- litigation
+- contractor exit
+- monsoon disruption
+
+These must NOT automatically trigger progress-silence alerts.
+
+---
+
+# 15. ML ENGINE ARCHITECTURE
+
+Implement the uploaded ML architecture as a modular system.
+
+The architecture is:
+
+PROJECT DATA
+
+↓
+
+MODULE A — Financial & Temporal
+
+MODULE B — Visual & Spatial
+
+MODULE C — Satellite Change Detection
+
+↓
+
+FUSION & DECISION SUPPORT
+
+↓
+
+RISK SCORE + EXPLANATIONS
+
+↓
+
+ALERT / WORKFLOW
+
+Do not replace this architecture with one generic ML score.
+
+---
+
+# 16. MODULE A — FINANCIAL & TEMPORAL
+
+Implement:
+
+## Cost-per-unit anomaly
+
+Use:
+
+- peer groups
+- Z-score
+- IQR
+
+Compare similar projects by work type and geographic peer group.
+
+Do NOT use one nationwide cost threshold.
+
+Output example:
+
+"Cost per unit is significantly above district peer median."
+
+---
+
+## Near-duplicate works
+
+Use:
+
+- project description similarity
+- fuzzy text matching
+- location similarity
+
+Use rapidfuzz where practical.
+
+Do not flag based only on text similarity.
+
+---
+
+## Progress-silence / dormancy
+
+Use peer-relative progress velocity.
+
+Do not use a simplistic fixed number of days.
+
+Exclude officially ON_HOLD projects.
+
+---
+
+## Isolation Forest
+
+Use scikit-learn Isolation Forest to detect unusual utilization/expenditure-vs-completion behavior.
+
+Create agency and district analytical features.
+
+If insufficient peer data exists:
+
+show:
+
+"Insufficient data"
+
+rather than fabricating a score.
+
+---
+
+## Ineligible category
+
+Use structured category information.
+
+Free text may provide a secondary signal but must not be the sole basis for an automatic high-risk classification.
+
+---
+
+## Cross-cycle duplicate asset
+
+Compare:
+
+- work description
+- location
+- fiscal year
+- project characteristics
+
+Require supporting evidence.
+
+---
+
+## No-tender
+
+Detect projects where tendering is expected but not recorded.
+
+---
+
+## Missing UC
+
+Detect missing utilization certificates.
+
+Missing UC alone should not create a high fraud risk.
+
+---
+
+## Agency concentration
+
+If one agency handles a large share of works in a geographic area:
+
+show:
+
+"Agency concentration advisory"
+
+This should NOT independently increase risk.
+
+---
+
+# 17. MODULE B — VISUAL & SPATIAL
+
+Implement:
+
+### Cross-project duplicate photo
+
+Use perceptual hashing.
+
+### Same-project repeated photo
+
+Compare sequential progress-update images.
+
+### Claimed progress vs visible progress
+
+Use a pretrained computer vision model where practical.
+
+For example:
+
+ResNet-50 / torchvision.
+
+### EXIF GPS
+
+Extract:
+
+- latitude
+- longitude
+- timestamp where available
+
+### Geofence
+
+Compare photo GPS with project/constituency location.
+
+### Segregation of duties
+
+Check whether the same person/agency submits and approves the same tranche.
+
+If EXIF is missing:
+
+show:
+
+"Metadata missing — manual verification required."
+
+Never crash.
+
+---
+
+# 18. MODULE C — SATELLITE
+
+Create a Satellite Change Detection module.
+
+Use:
+
+- sanction-period imagery
+- completion-period imagery
+- NDVI
+- NDBI
+
+If real Google Earth Engine credentials are available, support integration.
+
+If unavailable:
+
+create a mock/demo adapter.
+
+Never fabricate real satellite results.
+
+Clearly label mock results:
+
+"DEMO / SIMULATED SATELLITE RESULT"
+
+If imagery is unavailable:
+
+"Inconclusive — imagery unavailable"
+
+If cloud/weather prevents reliable comparison:
+
+"Inconclusive — weather"
+
+Do NOT turn inconclusive into a negative result.
+
+---
+
+# 19. FUSION ENGINE
+
+Combine evidence from:
+
+Financial & Temporal
+Visual & Spatial
+Satellite
+
+Implement:
+
+- weighted fusion
+- materiality weighting
+- evidence/reason strings
+- unavailable/inconclusive handling
+- corroboration logic
+- Isolation Forest novel anomaly detection
+- no-tender + repeated agency/approver overlap override
+
+Risk score:
+
+80–100 = HIGH
+
+40–79 = MODERATE
+
+0–39 = LOW
+
+But if mandatory information is missing:
+
+show:
+
+DATA INCOMPLETE
+
+Do not simply display green because no anomaly was detected.
+
+---
+
+# 20. IMPORTANT FRAUD-LANGUAGE RULE
+
+Never say:
+
+"Fraud confirmed"
+
+"Agency is corrupt"
+
+"This project is fraudulent"
+
+Instead use:
+
+"Potential anomaly detected"
+
+"Flagged for review"
+
+"Unusual pattern detected"
+
+"Requires manual verification"
+
+"Potential financial irregularity"
+
+"Potential duplicate work"
+
+"Risk indicator"
+
+The system supports human decision-making.
+
+It does not make legal findings.
+
+---
+
+# 21. DASHBOARD
+
+After login, show a professional dashboard.
+
+Header:
+
+SavidhanSamraksha logo
+
+Project name
+
+User name
+
+Role
+
+Scope
+
+Logout
+
+KPI cards:
+
+Total Projects
+
+Total Sanctioned Amount
+
+Total Expenditure
+
+High Risk
+
+Moderate Risk
+
+Low Risk
+
+Data Incomplete
+
+Then charts:
+
+Risk distribution
+
+Project status
+
+Expenditure vs sanctioned amount
+
+Progress distribution
+
+Agency-level anomaly summary
+
+Trend over fiscal years
+
+Keep charts clean and readable.
+
+---
+
+# 22. PROJECT LIST
+
+Create a project-monitoring table.
+
+Filters:
+
+Search
+
+State
+
+District
+
+Agency
+
+Work Category
+
+Risk Level
+
+Workflow Status
+
+Data Completeness
+
+Fiscal Year
+
+Columns:
+
+Work ID
+
+Project / Work Description
+
+Agency
+
+Sanctioned Amount
+
+Expenditure
+
+Physical Progress
+
+Risk Score
+
+Risk Level
+
+Workflow Status
+
+View
+
+Example:
+
+WS/AP/2024/00128
+Community Hall at Village X
+Public Works Department
+₹15.0 L
+₹11.8 L
+62%
+86
+HIGH
+UNDER REVIEW
+VIEW
+
+Clicking a project must open the full project detail page.
+
+---
+
+# 23. PROJECT DETAIL PAGE
+
+Show:
+
+Project information
+
+Financial information
+
+Agency information
+
+MP information
+
+Progress timeline
+
+Payment information
+
+Completion information
+
+Tender information
+
+UC information
+
+Asset information
+
+Then:
+
+## WHY WAS THIS PROJECT FLAGGED?
+
+Display each finding.
+
+Example:
+
+HIGH RISK — 86
+
+Cost anomaly
+
+"Cost per unit is 2.1× the district peer median."
+
+Progress anomaly
+
+"Physical progress is substantially below peer-relative progress velocity."
+
+Duplicate indicator
+
+"Similar work detected within the nearby geographic area."
+
+Tender anomaly
+
+"No tender record found for a project where tendering is expected."
+
+Then show:
+
+## ML MODULE RESULTS
+
+Financial & Temporal
+
+Visual & Spatial
+
+Satellite
+
+Each module should show:
+
+status
+score/contribution if available
+findings
+evidence
+inconclusive/missing-data status
+
+---
+
+# 24. PROJECT PHOTOS
+
+Where synthetic photos are available:
+
+show thumbnails.
+
+Display:
+
+Photo date
+
+Uploader
+
+GPS status
+
+EXIF status
+
+Progress stage
+
+Duplicate status
+
+If duplicate:
+
+"Potential reused image detected."
+
+---
+
+# 25. PROJECT ACTIONS
+
+### Ministry
+
+Buttons:
+
+Resolve
+Dismiss
+Close
+
+### State Nodal
+
+Buttons:
+
+Resolve
+Dismiss
+Escalate
+Close
+
+### District Nodal
+
+Buttons:
+
+Resolve
+Dismiss
+Escalate
+
+### MP
+
+NO ACTION BUTTONS.
+
+MP is read-only.
+
+Every action should create an entry in FLAG_ACTIONS.
+
+Require a reason/note for action.
+
+---
+
+# 26. WORKFLOW
+
+States:
+
+OPEN
+
+UNDER REVIEW
+
+RESOLVED
+
+DISMISSED
+
+ESCALATED
+
+CLOSED
+
+Escalation:
+
+District → State
+
+State → Ministry
+
+Escalated cases become visible to the target authority.
+
+---
+
+# 27. AUDIT LOG
+
+Every important action must be recorded:
+
+user
+role
+project
+flag
+action
+timestamp
+reason
+
+Show an audit-history section on the project detail page.
+
+---
+
+# 28. SECURITY
+
+Use backend authorization.
+
+Do NOT rely only on frontend filtering.
+
+JWT should contain:
+
+user_id
+role
+scope_id
+
+Every protected API endpoint must validate:
+
+- authenticated user
+- role
+- scope
+
+A district user must not be able to access another district simply by modifying a URL.
+
+A state user must not access another state.
+
+An MP must only access their permitted works.
+
+---
+
+# 29. LOGOUT
+
+Place Logout in the top-right profile menu.
+
+Show:
+
+Name
+Role
+Scope
+Logout
+
+Logout must end the session and return to login.
+
+---
+
+# 30. DATABASE
+
+Create at minimum:
+
+USERS
+
+AGENCIES
+
+PROJECTS
+
+PROGRESS_UPDATES
+
+RISK_FLAGS
+
+FLAG_ACTIONS
+
+PAYMENTS
+
+ASSETS
+
+Use foreign keys and proper relationships.
+
+Do not store calculated agency-level ML metrics permanently in the agency master table unless needed for caching.
+
+Calculated analytics should come from project/transaction data.
+
+---
+
+# 31. TESTING
+
+Create tests for:
+
+Ministry login
+
+State login
+
+District login
+
+MP login
+
+Invalid password
+
+State → district filtering
+
+Role authorization
+
+District scope isolation
+
+State scope isolation
+
+MP read-only access
+
+Logout
+
+Project detail
+
+Risk calculation
+
+Data incomplete behavior
+
+Missing EXIF behavior
+
+Duplicate image detection
+
+No-tender detection
+
+Agency concentration advisory
+
+No-tender + approver overlap
+
+ON_HOLD exclusion from dormancy
+
+Workflow transitions
+
+Audit log creation
+
+---
+
+# 32. SYNTHETIC DATA LABEL
+
+Clearly indicate somewhere in the application:
+
+"Synthetic Demonstration Dataset"
+
+Do not represent generated project, agency, user or financial records as real government records.
+
+---
+
+# 33. V1 EXCLUSIONS
+
+Do NOT build these yet:
+
+- graph-based DPF-GFD collusion model
+- election sanction spike detection
+- agency behavioral drift over time
+- real e-SAKSHI photo feed
+- ISRO Bhuvan/Cartosat integration
+- Sentinel-1 monsoon fallback
+- automated SMS/email escalation
+- SLA tracking
+
+Keep the architecture extensible for future versions.
+
+---
+
+# 34. MOST IMPORTANT DEMO FLOW
+
+The final prototype must allow this complete demonstration:
+
+Landing page
+
+↓
+
+Select District Nodal Officer
+
+↓
+
+Select Andhra Pradesh
+
+↓
+
+Select a district
+
+↓
+
+Login
+
+↓
+
+District dashboard
+
+↓
+
+See scoped project list
+
+↓
+
+Click high-risk project
+
+↓
+
+View complete project details
+
+↓
+
+See ML findings
+
+↓
+
+See why the project was flagged
+
+↓
+
+Inspect visual/spatial/satellite evidence
+
+↓
+
+Click Escalate
+
+↓
+
+Enter reason
+
+↓
+
+Status changes to ESCALATED
+
+↓
+
+Audit log records the action
+
+↓
+
+Logout
+
+Then demonstrate:
+
+MP login
+
+↓
+
+See permitted projects
+
+↓
+
+Open project
+
+↓
+
+View ML findings
+
+↓
+
+No modification controls available
+
+↓
+
+Logout
+
+Then demonstrate:
+
+Ministry login
+
+↓
+
+National project view
+
+↓
+
+Open escalated project
+
+↓
+
+Resolve / Dismiss / Close
+
+↓
+
+Audit trail updated
+
+---
+
+# 35. FINAL REQUIREMENT
+
+Build this as a coherent product called:
+
+# SavidhanSamraksha
+
+Do not leave placeholder screens saying "Coming Soon" for the core functionality.
+
+If a complex external integration cannot run in the Replit environment, create a clearly labelled demo adapter so the end-to-end workflow remains functional.
+
+At the end, provide:
+
+1. Application URL
+2. Database schema
+3. Project structure
+4. Seed data structure
+5. ML modules
+6. API endpoints
+7. Demo credentials
+8. Environment variables
+9. How to run
+10. What has been implemented
+11. Known limitations
+
+Start building the application now.
