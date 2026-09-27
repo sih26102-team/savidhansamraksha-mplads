@@ -5,17 +5,7 @@
   "author": "Phaneendra <phaneendra@savidhansamraksha.gov.in>",
   "type": "module",
   "scripts": {
-    "seed": "node ./scripts/seed-projects.mjs",
-    "seed:users": "node ./scripts/seed-demo-users.mjs",
-    "rescore": "node ./scripts/rescore-all-projects-ml.mjs",
-    "verify": "node ./scripts/verify-scores.mjs",
-    "etl:py": "python etl_pipeline.py"
-  },
-  "dependencies": {
-    "@workspace/db": "workspace:*",
-    "@workspace/ml-engine": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/node": "catalog:"
+    "seed": "python seed_database.py",
+    "etl": "python etl_pipeline.py"
   }
 }

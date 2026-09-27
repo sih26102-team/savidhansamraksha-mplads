@@ -14,21 +14,16 @@ async function main() {
   console.log('\n======================================================');
   console.log('   SavidhanSamraksha Monitoring Platform - Dev Runner');
   console.log('======================================================\n');
-  console.log('[Dev] Building API Server...');
-  execSync(`"${process.execPath}" ./build.mjs`, { cwd: apiDir, stdio: 'inherit' });
-
-  console.log('[Dev] Starting API Server on http://localhost:5000...');
+  console.log('[Dev] Starting Python FastAPI Backend on http://localhost:5000...');
   const apiProcess = spawn(
-    process.execPath,
-    ['--enable-source-maps', './dist/index.mjs'],
+    'python',
+    ['-m', 'uvicorn', 'main:app', '--app-dir', 'backend-data', '--host', '0.0.0.0', '--port', '5000'],
     {
-      cwd: apiDir,
+      cwd: rootDir,
       stdio: 'inherit',
       env: {
         ...process.env,
-        PORT: '5000',
         DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres@127.0.0.1:5433/savidhan',
-        SESSION_SECRET: process.env.SESSION_SECRET || 'savidhan-samraksha-development-secret',
       },
     }
   );

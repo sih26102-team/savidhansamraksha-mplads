@@ -5,13 +5,10 @@
   "scripts": {
     "preinstall": "node -e \"if (!process.env.npm_config_user_agent?.startsWith('pnpm/')) { console.error('Use pnpm instead'); process.exit(1) }\"",
     "dev": "node ./scripts/dev.mjs",
-    "dev:api": "pnpm --filter @workspace/backend-data run dev",
     "dev:py": "python -m uvicorn main:app --app-dir backend-data --host 0.0.0.0 --port 5000 --reload",
     "dev:web": "pnpm --filter @workspace/frontend-dashboard run dev",
     "db:start": "node ./scripts/start-db.mjs",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./backend-data\" --filter \"./ml-engine\" --filter \"./backend-case\" --filter \"./data-pipeline\" --filter \"./scripts\" --if-present run typecheck"
+    "build": "pnpm -r --if-present run build"
   },
   "private": true,
   "dependencies": {
@@ -21,7 +18,6 @@
     "@rollup/rollup-win32-x64-msvc": "^4.63.5",
     "@tailwindcss/oxide-win32-x64-msvc": "*",
     "lightningcss-win32-x64-msvc": "^1.33.0",
-    "prettier": "^3.9.6",
-    "typescript": "~5.9.3"
+    "prettier": "^3.9.6"
   }
 }

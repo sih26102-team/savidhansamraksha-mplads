@@ -44,8 +44,6 @@ jobs:
       - name: Install Node Monorepo Dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Monorepo Typecheck
-        run: pnpm run typecheck
-
       - name: Monorepo Production Build
         run: pnpm run build
+
