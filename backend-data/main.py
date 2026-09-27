@@ -48,28 +48,36 @@ app.add_middleware(
 
 @app.on_event("startup")
 def fix_sequences():
-    """Reset PostgreSQL sequences to prevent duplicate-key errors after bulk imports."""
+    """Reset PostgreSQL sequences so nextval() is always greater than MAX(id)."""
     try:
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
-        tables_seqs = [
-            ("flag_actions", "flag_actions_id_seq", "id"),
-            ("project_escalations", "project_escalations_id_seq", "id"),
+        tables = [
+            "flag_actions",
+            "project_escalations",
+            "risk_flags",
+            "progress_updates",
+            "payments",
+            "assets",
         ]
-        for table, seq, col in tables_seqs:
+        for tbl in tables:
             try:
-                cur.execute(f"SELECT setval('{seq}', COALESCE((SELECT MAX({col}) FROM {table}), 1))")
-                print(f"[Startup] Reset sequence {seq}")
+                cur.execute(f"SELECT pg_get_serial_sequence('{tbl}', 'id')")
+                row = cur.fetchone()
+                seq = row[0] if row else None
+                if seq:
+                    cur.execute(f"SELECT setval('{seq}', GREATEST(COALESCE((SELECT MAX(id) FROM {tbl}), 0), 1), true)")
+                    print(f"[Startup] Reset sequence {seq} for {tbl}")
             except Exception as e:
-                print(f"[Startup] Skipping sequence {seq}: {e}")
+                print(f"[Startup] Sequence check skipped for {tbl}: {e}")
                 conn.rollback()
         conn.commit()
         conn.close()
-        print("[Startup] Sequence fix complete")
+        print("[Startup] Sequence sync completed.")
     except Exception as e:
-        print(f"[Startup] Sequence fix failed (non-fatal): {e}")
+        print(f"[Startup] Sequence fix error: {e}")
 
-
+def get_db():
     conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
     try:
         yield conn
@@ -897,14 +905,23 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
             WHERE work_id = %s
         """, [new_status, p["work_id"]])
 
+        # Safely determine next unique ID to completely eliminate sequence desync
+        cur.execute("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM flag_actions")
+        next_action_id = cur.fetchone()["next_id"]
+
         cur.execute("""
-            INSERT INTO flag_actions (work_id, user_id, role, action, reason, from_status, to_status, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            INSERT INTO flag_actions (id, work_id, user_id, role, action, reason, from_status, to_status, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
             RETURNING id
-        """, [p["work_id"], user_identifier, role, body.action, body.reason, old_status, new_status])
+        """, [next_action_id, p["work_id"], user_identifier, role, body.action, body.reason, old_status, new_status])
         action_row = cur.fetchone()
         if action_row:
             action_id = str(action_row["id"])
+
+        try:
+            cur.execute("SELECT setval(pg_get_serial_sequence('flag_actions', 'id'), %s, true)", [next_action_id])
+        except Exception:
+            pass
 
         conn.commit()
     except Exception as e:
@@ -921,13 +938,22 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
             esc_conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
             esc_cur = esc_conn.cursor()
             target_role = "STATE_NODAL" if new_status == "ESCALATED" else "MINISTRY"
+
+            esc_cur.execute("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM project_escalations")
+            next_esc_id = esc_cur.fetchone()["next_id"]
+
             esc_cur.execute("""
-                INSERT INTO project_escalations (work_id, escalated_by_user_id, escalated_by_role, target_role, target_scope, escalation_reason, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', NOW())
+                INSERT INTO project_escalations (id, work_id, escalated_by_user_id, escalated_by_role, target_role, target_scope, escalation_reason, status, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'PENDING', NOW())
             """, [
+                next_esc_id,
                 p["work_id"], user_identifier, role, target_role,
                 user.get("stateCode") or "NATIONAL", body.reason
             ])
+            try:
+                esc_cur.execute("SELECT setval(pg_get_serial_sequence('project_escalations', 'id'), %s, true)", [next_esc_id])
+            except Exception:
+                pass
             esc_conn.commit()
             esc_conn.close()
         except Exception as esc_err:
