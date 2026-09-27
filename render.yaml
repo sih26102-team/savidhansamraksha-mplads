@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: savidhan-api-server
+    env: python
+    buildCommand: pip install -r backend-data/requirements.txt -r ml-engine/requirements.txt
+    startCommand: uvicorn main:app --app-dir backend-data --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        sync: false
