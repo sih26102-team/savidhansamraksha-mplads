@@ -20,9 +20,26 @@ const roleLabels = {
     DISTRICT_AUTHORITY: 'District Nodal Officer',
     MP: 'Member of Parliament',
 };
-const money = (amount) => `₹${(amount / 10000000).toFixed(2)} Cr`;
-const number = (amount) => new Intl.NumberFormat('en-IN').format(amount);
-const date = (value) => new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+const money = (amount) => {
+    const val = Number(amount);
+    if (isNaN(val)) return '₹0.00 Cr';
+    return `₹${(val / 10000000).toFixed(2)} Cr`;
+};
+const number = (amount) => {
+    const val = Number(amount);
+    if (isNaN(val)) return '0';
+    return new Intl.NumberFormat('en-IN').format(val);
+};
+const date = (value) => {
+    if (!value) return '—';
+    try {
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return '—';
+        return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+    } catch {
+        return '—';
+    }
+};
 function Logo({ compact = false }) {
     return (<div className="brand-container" data-testid="brand-savidhan-samraksha">
       <div className="seal-mark"><Landmark size={20} strokeWidth={1.8}/></div>
@@ -33,7 +50,7 @@ function Logo({ compact = false }) {
     </div>);
 }
 function StatusPill({ value, kind = 'risk' }) {
-    const key = value.toUpperCase();
+    const key = (value ? String(value) : 'UNKNOWN').toUpperCase();
     const styles = {
         HIGH: 'pill-high', MODERATE: 'pill-moderate', LOW: 'pill-low', DATA_INCOMPLETE: 'pill-incomplete',
         OPEN: 'pill-open', UNDER_REVIEW: 'pill-review', RESOLVED: 'pill-resolved', DISMISSED: 'pill-muted',
@@ -49,13 +66,15 @@ function Skeleton({ rows = 4 }) {
     return <div className="space-y-3" data-testid="state-loading">{Array.from({ length: rows }).map((_, index) => <div className="skeleton-row" key={index}><div className="skeleton w-8"/><div className="skeleton flex-1"/><div className="skeleton w-20"/></div>)}</div>;
 }
 function RiskSignalCell({ riskLevel, riskScore }) {
-    return (<div className="risk-signal-cell" data-testid={`risk-signal-${riskLevel.toLowerCase()}`}>
+    const safeLevel = (riskLevel ? String(riskLevel) : 'LOW').toUpperCase();
+    const safeScore = Number(riskScore);
+    return (<div className="risk-signal-cell" data-testid={`risk-signal-${safeLevel.toLowerCase()}`}>
       <div className="risk-pill-row">
-        <StatusPill value={riskLevel}/>
+        <StatusPill value={safeLevel}/>
       </div>
       <div className="risk-score-row">
         <span className="risk-score-label">Score:</span>
-        <span className="risk-score-value">{riskScore.toFixed(2)}</span>
+        <span className="risk-score-value">{isNaN(safeScore) ? '0.00' : safeScore.toFixed(2)}</span>
       </div>
     </div>);
 }
@@ -647,15 +666,22 @@ function MetricCard({ label, value, detail, accent, icon: Icon }) {
     </div>);
 }
 function ChartBars({ points, color = '#315f79' }) {
-    const max = Math.max(...points.map((p) => p.value), 1);
+    if (!points || !points.length) {
+        return <div className="text-[12px] text-[#718392] py-4 text-center">No data available</div>;
+    }
+    const max = Math.max(...points.map((p) => Number(p.value) || 0), 1);
     return (<div className="bar-chart">
-      {points.map((point) => (<div className="bar-column" key={point.label} data-testid={`bar-${point.label}`}>
-          <div className="bar-value">{number(point.value)}</div>
-          <div className="bar-track">
-            <div className="bar-fill" style={{ height: `${Math.max(5, (point.value / max) * 100)}%`, backgroundColor: color }}/>
-          </div>
-          <div className="bar-label">{point.label}</div>
-        </div>))}
+      {points.map((point) => {
+          const val = Number(point.value) || 0;
+          const barHeight = val > 0 ? Math.max(8, (val / max) * 100) : 0;
+          return (<div className="bar-column" key={point.label} data-testid={`bar-${point.label}`}>
+            <div className="bar-value">{number(val)}</div>
+            <div className="bar-track">
+              <div className="bar-fill" style={{ height: `${barHeight}%`, backgroundColor: color, opacity: val > 0 ? 1 : 0.2 }}/>
+            </div>
+            <div className="bar-label">{point.label.replaceAll('_', ' ')}</div>
+          </div>);
+      })}
     </div>);
 }
 function FiscalTrendDualChart({ points }) {
@@ -941,21 +967,21 @@ function ProjectTable({ items }) {
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (<tr key={item.workId} data-testid={`row-project-${item.workId}`}>
+          {(items || []).map((item) => (<tr key={item.workId} data-testid={`row-project-${item.workId}`}>
               <td>
                 <Link href={`/projects/${item.workId}`} className="work-link" data-testid={`link-project-${item.workId}`}>
                   <span className="font-mono text-[11px]">{item.workId}</span>
-                  <strong>{item.description}</strong>
-                  <span className="location-line"><MapPin size={11}/>{item.district}, {item.state}</span>
+                  <strong>{item.description || item.title || item.workId}</strong>
+                  <span className="location-line"><MapPin size={11}/>{item.district || '—'}{item.state ? `, ${item.state}` : ''}</span>
                 </Link>
               </td>
               <td>
-                <span className="text-[12px] text-[#4b6678] font-medium block">{categoryDisplayNames[item.category] || item.category}</span>
-                <span className="block mt-1 font-mono text-[10px] text-[#8695a0]">{item.fiscalYear}</span>
+                <span className="text-[12px] text-[#4b6678] font-medium block">{categoryDisplayNames[item.category] || item.category || 'General'}</span>
+                <span className="block mt-1 font-mono text-[10px] text-[#8695a0]">{item.fiscalYear || '—'}</span>
               </td>
               <td>
-                <div className="progress-number">{item.physicalProgress.toFixed(0)}%</div>
-                <div className="mini-progress"><span style={{ width: `${item.physicalProgress}%` }}/></div>
+                <div className="progress-number">{(Number(item.physicalProgress) || 0).toFixed(0)}%</div>
+                <div className="mini-progress"><span style={{ width: `${Math.min(100, Math.max(0, Number(item.physicalProgress) || 0))}%` }}/></div>
                 <span className="mt-1 block text-[10px] text-[#8998a2]">{money(item.expenditure)} spent</span>
               </td>
               <td>
@@ -1031,7 +1057,7 @@ function EscalationReviewModal({ project, userRole, onClose, }) {
           <div>
             <div className="eyebrow text-[#b0792c]">HIERARCHICAL OVERSIGHT DESK</div>
             <h3 className="font-serif text-[18px] text-[#1a384e]">{project.workId}</h3>
-            <p className="text-[11px] text-[#697f8e] mt-1">{project.description}</p>
+            <p className="text-[11px] text-[#697f8e] mt-1">{project.description || project.title || 'MPLADS Work Record'}</p>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close modal">
             <X size={16}/>
@@ -1041,11 +1067,11 @@ function EscalationReviewModal({ project, userRole, onClose, }) {
         <div className="modal-body">
           <div className="escalation-origin-box">
             <div className="origin-header">
-              <span><strong>Escalated by:</strong> {project.escalatedByUserName} ({roleLabels[project.escalatedByRole] || project.escalatedByRole})</span>
-              <span>{date(project.escalatedAt)}</span>
+              <span><strong>Escalated by:</strong> {project.escalatedByUserName || 'Authority Officer'} ({roleLabels[project.escalatedByRole] || project.escalatedByRole || 'Authority'})</span>
+              <span>{date(project.escalatedAt || project.updatedAt)}</span>
             </div>
             <div className="origin-reason">
-              "{project.escalationReason}"
+              "{project.escalationReason || 'Administrative review requested'}"
             </div>
           </div>
 
@@ -1060,15 +1086,15 @@ function EscalationReviewModal({ project, userRole, onClose, }) {
             </div>
             <div className="modal-meta-cell">
               <span>Physical Progress</span>
-              <strong>{project.physicalProgress.toFixed(1)}%</strong>
+              <strong>{(Number(project.physicalProgress) || 0).toFixed(1)}%</strong>
             </div>
             <div className="modal-meta-cell">
               <span>Location</span>
-              <strong>{project.district}, {project.state}</strong>
+              <strong>{project.district || '—'}{project.state ? `, ${project.state}` : ''}</strong>
             </div>
             <div className="modal-meta-cell">
               <span>Agency</span>
-              <strong>{project.agency}</strong>
+              <strong>{project.agency || 'Implementing Agency'}</strong>
             </div>
             <div className="modal-meta-cell">
               <span>Risk Level</span>
@@ -1121,15 +1147,16 @@ function EscalatedProjectsPage() {
     const [roleFilter, setRoleFilter] = useState('');
     const [reviewingProject, setReviewingProject] = useState(null);
     const filteredItems = useMemo(() => {
-        if (!escalated.data)
+        const rawList = Array.isArray(escalated.data) ? escalated.data : (escalated.data?.items || []);
+        if (!rawList.length)
             return [];
-        return escalated.data.filter((item) => {
+        return rawList.filter((item) => {
             if (search) {
                 const query = search.toLowerCase();
-                const matches = item.workId.toLowerCase().includes(query) ||
-                    item.description.toLowerCase().includes(query) ||
-                    item.district.toLowerCase().includes(query) ||
-                    item.escalationReason.toLowerCase().includes(query);
+                const matches = (item.workId || '').toLowerCase().includes(query) ||
+                    (item.description || item.title || '').toLowerCase().includes(query) ||
+                    (item.district || '').toLowerCase().includes(query) ||
+                    (item.escalationReason || '').toLowerCase().includes(query);
                 if (!matches)
                     return false;
             }
@@ -1227,32 +1254,32 @@ function EscalatedProjectsPage() {
                     <td>
                       <Link href={`/projects/${item.workId}`} className="work-link">
                         <span className="font-mono text-[11px]">{item.workId}</span>
-                        <strong>{item.description}</strong>
+                        <strong>{item.description || item.title || item.workId}</strong>
                         <span className="location-line">
-                          <MapPin size={11}/>{item.district}, {item.state}
+                          <MapPin size={11}/>{item.district || '—'}{item.state ? `, ${item.state}` : ''}
                         </span>
                       </Link>
                     </td>
                     <td>
                       <div className="text-[12px] font-semibold text-[#27495f]">
-                        {item.escalatedByUserName}
+                        {item.escalatedByUserName || 'District Authority'}
                       </div>
                       <div className="text-[10px] text-[#718491]">
-                        {roleLabels[item.escalatedByRole] || item.escalatedByRole}
+                        {roleLabels[item.escalatedByRole] || item.escalatedByRole || 'Authority'}
                       </div>
                     </td>
                     <td style={{ maxWidth: '300px' }}>
                       <span className="font-mono text-[10px] text-[#8697a2] block">
-                        {date(item.escalatedAt)}
+                        {date(item.escalatedAt || item.updatedAt)}
                       </span>
                       <div className="text-[11px] text-[#476071] italic mt-0.5 line-clamp-2">
-                        "{item.escalationReason}"
+                        "{item.escalationReason || 'Severe expenditure-progress variance flagged by ML engine'}"
                       </div>
                     </td>
                     <td>
-                      <div className="progress-number">{item.physicalProgress.toFixed(0)}%</div>
+                      <div className="progress-number">{(Number(item.physicalProgress) || 0).toFixed(0)}%</div>
                       <div className="mini-progress">
-                        <span style={{ width: `${item.physicalProgress}%` }}/>
+                        <span style={{ width: `${Math.min(100, Math.max(0, Number(item.physicalProgress) || 0))}%` }}/>
                       </div>
                       <span className="mt-1 block text-[10px] text-[#8998a2]">
                         {money(item.expenditure)} spent
@@ -1393,7 +1420,7 @@ function ProjectDetailPage() {
     if (project.isError || !project.data)
         return <PageFrame eyebrow="PROJECT FILE" title="Evidence file unavailable"><ErrorState onRetry={() => project.refetch()} message="This work ID is not available in the current authority scope."/></PageFrame>;
     const item = project.data;
-    return (<PageFrame eyebrow={`PROJECT FILE / ${item.workId}`} title={item.description} subtitle={`${item.district}, ${item.state} · ${categoryDisplayNames[item.category] || item.category} · ${item.fiscalYear}`} actions={<Link href="/projects" className="button button-secondary" data-testid="link-back-projects">
+    return (<PageFrame eyebrow={`PROJECT FILE / ${item.workId}`} title={item.description || item.title || item.workId} subtitle={`${item.district || '—'}${item.state ? `, ${item.state}` : ''} · ${categoryDisplayNames[item.category] || item.category || 'General'} · ${item.fiscalYear || '—'}`} actions={<Link href="/projects" className="button button-secondary" data-testid="link-back-projects">
           <ChevronLeft size={14}/> Back to projects
         </Link>}>
       <div className="detail-top">
@@ -1404,7 +1431,7 @@ function ProjectDetailPage() {
         </div>
         <div className="detail-confidence">
           <span className="eyebrow">RISK SCORE</span>
-          <strong>{item.riskScore.toFixed(2)}</strong>
+          <strong>{(Number(item.riskScore) || 0).toFixed(2)}</strong>
           <span>Model output · synthetic</span>
         </div>
       </div>
@@ -1423,13 +1450,13 @@ function ProjectDetailPage() {
               <DetailRow label="Sanctioned amount" value={money(item.sanctionedAmount)}/>
               <DetailRow label="Estimated cost" value={money(item.estimatedCost)}/>
               <DetailRow label="Expenditure" value={money(item.expenditure)}/>
-              <DetailRow label="Physical progress" value={<span>{item.physicalProgress.toFixed(1)}% <span className="font-normal text-[#8695a0]">complete</span></span>}/>
+              <DetailRow label="Physical progress" value={<span>{(Number(item.physicalProgress) || 0).toFixed(1)}% <span className="font-normal text-[#8695a0]">complete</span></span>}/>
               <DetailRow label="Date of sanction" value={date(item.dateOfSanction)}/>
               <DetailRow label="Expected completion" value={date(item.expectedCompletionDate)}/>
             </div>
             <div className="large-progress">
-              <div><span>Physical progress</span><strong>{item.physicalProgress.toFixed(1)}%</strong></div>
-              <div className="large-progress-track"><span style={{ width: `${item.physicalProgress}%` }}/></div>
+              <div><span>Physical progress</span><strong>{(Number(item.physicalProgress) || 0).toFixed(1)}%</strong></div>
+              <div className="large-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(item.physicalProgress) || 0))}%` }}/></div>
             </div>
           </section>
 
@@ -1477,7 +1504,7 @@ function ProjectDetailPage() {
                       <span />{module.status.replaceAll('_', ' ')}
                     </span>
                   </div>
-                  {module.score !== null && module.score !== undefined && (<div className="module-score">{module.score.toFixed(2)}</div>)}
+                  {module.score !== null && module.score !== undefined && (<div className="module-score">{(Number(module.score) || 0).toFixed(2)}</div>)}
                   <p>{module.summary}</p>
                   <div className="module-evidence">
                     {module.evidence.slice(0, 2).map((evidence) => (<span key={evidence}><Check size={11}/>{evidence}</span>))}

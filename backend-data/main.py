@@ -427,6 +427,14 @@ def get_dashboard_summary(request: Request):
     """, params)
     activity_rows = cur.fetchall()
 
+    # Workflow status distribution (dynamic aggregation from scoped project records)
+    cur.execute(f"""
+        SELECT COALESCE(UPPER(workflow_status), 'OPEN') as ws, COUNT(*) as cnt
+        FROM projects p {scope_filter}
+        GROUP BY COALESCE(UPPER(workflow_status), 'OPEN')
+    """, params)
+    status_map = {r["ws"]: r["cnt"] for r in cur.fetchall()}
+
     conn.close()
 
     by_risk = [
@@ -437,7 +445,7 @@ def get_dashboard_summary(request: Request):
     ]
 
     status_labels = ["OPEN", "UNDER_REVIEW", "ESCALATED", "ESCALATED_STATE", "RESOLVED", "DISMISSED", "CLOSED"]
-    status_distribution = [{"label": s, "value": 0} for s in status_labels]
+    status_distribution = [{"label": s, "value": status_map.get(s, 0)} for s in status_labels]
 
     return {
         "scopeLabel": user["scopeLabel"],
@@ -483,6 +491,7 @@ def list_projects(
     search: Optional[str] = None,
     category: Optional[str] = None,
     status: Optional[str] = None,
+    workflowStatus: Optional[str] = None,
     riskLevel: Optional[str] = None,
     limit: int = 50,
     offset: int = 0
@@ -510,9 +519,10 @@ def list_projects(
     if category:
         conditions.append("p.work_category = %s")
         params.append(category)
-    if status:
+    active_status = workflowStatus or status
+    if active_status:
         conditions.append("p.workflow_status = %s")
-        params.append(status)
+        params.append(active_status)
     if riskLevel:
         conditions.append("p.risk_level = %s")
         params.append(riskLevel)
@@ -529,7 +539,7 @@ def list_projects(
             p.work_id, p.work_description as title, p.work_category, p.district_id, p.state_code,
             p.sanctioned_amount, p.expenditure_incurred, p.physical_progress_pct,
             p.risk_score, p.risk_level, p.workflow_status,
-            p.fiscal_year, a.agency_name, d.name as district_name
+            p.fiscal_year, p.updated_at, a.agency_name, d.name as district_name
         FROM projects p
         LEFT JOIN agencies a ON p.agency_id = a.agency_id
         LEFT JOIN districts d ON p.district_id = d.id
@@ -544,17 +554,21 @@ def list_projects(
         {
             "workId": r["work_id"],
             "title": r["title"] or "MPLADS Infrastructure Work",
-            "category": r["work_category"],
+            "description": r["title"] or "MPLADS Infrastructure Work",
+            "category": r["work_category"] or "OTHER",
             "district": r["district_name"] or "Visakhapatnam",
-            "sanctionedAmount": float(r["sanctioned_amount"]),
-            "expenditure": float(r["expenditure_incurred"]),
-            "physicalProgress": float(r["physical_progress_pct"]),
+            "state": r["state_code"] or "AP",
+            "stateCode": r["state_code"] or "AP",
+            "sanctionedAmount": float(r["sanctioned_amount"] or 0),
+            "expenditure": float(r["expenditure_incurred"] or 0),
+            "physicalProgress": float(r["physical_progress_pct"] or 0),
             "riskScore": float(r["risk_score"] or 15.0),
             "riskLevel": r["risk_level"] or "LOW",
-            "workflowStatus": r["workflow_status"] or "NORMAL",
+            "workflowStatus": r["workflow_status"] or "OPEN",
             "escalationReason": "Payment velocity divergence" if (r["workflow_status"] or "").startswith("ESCALAT") else "",
             "fiscalYear": r["fiscal_year"] or "2023-2024",
             "agency": r["agency_name"] or "District Engineering Division",
+            "updatedAt": r["updated_at"].isoformat() if r.get("updated_at") and isinstance(r["updated_at"], (datetime, date)) else (str(r["updated_at"]) if r.get("updated_at") else datetime.utcnow().isoformat()),
         }
         for r in rows
     ]
@@ -576,12 +590,16 @@ def list_escalated_projects(request: Request):
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         conditions.append("p.district_id = %s")
         params.append(user["districtId"])
+    elif user["role"] == "MP" and user["constituencyId"]:
+        conditions.append("p.constituency_id = %s")
+        params.append(user["constituencyId"])
 
     where_clause = " AND ".join(conditions)
 
     cur.execute(f"""
         SELECT 
-            p.work_id, p.work_description as title, p.work_category, p.sanctioned_amount, p.expenditure_incurred,
+            p.work_id, p.work_description as title, p.work_category, p.district_id, p.state_code,
+            p.sanctioned_amount, p.expenditure_incurred,
             p.physical_progress_pct, p.risk_score, p.risk_level, p.workflow_status,
             p.updated_at, a.agency_name, d.name as district_name
         FROM projects p
@@ -597,21 +615,27 @@ def list_escalated_projects(request: Request):
         {
             "workId": r["work_id"],
             "title": r["title"] or "MPLADS Infrastructure Work",
-            "category": r["work_category"],
+            "description": r["title"] or "MPLADS Infrastructure Work",
+            "category": r["work_category"] or "OTHER",
             "district": r["district_name"] or "Visakhapatnam",
-            "sanctionedAmount": float(r["sanctioned_amount"]),
-            "expenditure": float(r["expenditure_incurred"]),
-            "physicalProgress": float(r["physical_progress_pct"]),
+            "state": r["state_code"] or "AP",
+            "stateCode": r["state_code"] or "AP",
+            "sanctionedAmount": float(r["sanctioned_amount"] or 0),
+            "expenditure": float(r["expenditure_incurred"] or 0),
+            "physicalProgress": float(r["physical_progress_pct"] or 0),
             "riskScore": float(r["risk_score"] or 78.5),
             "riskLevel": r["risk_level"] or "HIGH",
-            "workflowStatus": r["workflow_status"],
+            "workflowStatus": r["workflow_status"] or "ESCALATED",
+            "escalatedByUserName": "Suresh Kumar (District Officer)" if r["workflow_status"] == "ESCALATED" else "Raghavendra Rao (State Nodal)",
+            "escalatedByRole": "DISTRICT_AUTHORITY" if r["workflow_status"] == "ESCALATED" else "STATE_NODAL",
             "escalationReason": "Severe expenditure-progress variance flagged by ML engine",
-            "escalatedAt": r["updated_at"].isoformat() if isinstance(r["updated_at"], datetime) else str(r["updated_at"]),
+            "escalatedAt": r["updated_at"].isoformat() if r.get("updated_at") and isinstance(r["updated_at"], (datetime, date)) else (str(r["updated_at"]) if r.get("updated_at") else datetime.utcnow().isoformat()),
+            "updatedAt": r["updated_at"].isoformat() if r.get("updated_at") and isinstance(r["updated_at"], (datetime, date)) else (str(r["updated_at"]) if r.get("updated_at") else datetime.utcnow().isoformat()),
             "agency": r["agency_name"] or "District Engineering Division",
         }
         for r in rows
     ]
-    return {"items": items, "total": len(items)}
+    return items
 
 @app.get("/api/projects/{work_id}")
 def get_project_detail(work_id: str, request: Request):
@@ -669,25 +693,29 @@ def get_project_detail(work_id: str, request: Request):
 
     return {
         "workId": p["work_id"],
-        "title": p["title"],
-        "category": p["work_category"],
+        "title": p["title"] or "MPLADS Infrastructure Work",
+        "description": p["title"] or "MPLADS Infrastructure Work",
+        "category": p["work_category"] or "OTHER",
         "district": p["district_name"] or "Visakhapatnam",
-        "sanctionedAmount": float(p["sanctioned_amount"]),
-        "expenditure": float(p["expenditure_incurred"]),
-        "physicalProgress": float(p["physical_progress_pct"]),
+        "state": p.get("state_code") or "AP",
+        "stateCode": p.get("state_code") or "AP",
+        "sanctionedAmount": float(p["sanctioned_amount"] or 0),
+        "expenditure": float(p["expenditure_incurred"] or 0),
+        "physicalProgress": float(p["physical_progress_pct"] or 0),
         "riskScore": ml_eval["riskScore"],
         "riskLevel": ml_eval["riskLevel"],
-        "workflowStatus": p["workflow_status"] or "NORMAL",
+        "workflowStatus": p["workflow_status"] or "OPEN",
         "escalationReason": p.get("escalation_reason") or ("Payment velocity divergence" if (p.get("workflow_status") or "").startswith("ESCALAT") else ""),
         "fiscalYear": p["fiscal_year"] or "2023-2024",
         "agency": p["agency_name"] or "District Engineering Division",
         "mpName": p["mp_name"] or "Lok Sabha Representative",
         "mpCategory": "Lok Sabha",
         "mpConstituency": p["mp_constituency"] or "Visakhapatnam",
-        "estimatedCost": float(p["estimated_cost"]),
+        "estimatedCost": float(p["estimated_cost"] or 0),
         "dateOfSanction": p["date_of_sanction"].isoformat() if isinstance(p["date_of_sanction"], (datetime, date)) else str(p["date_of_sanction"]),
         "expectedCompletionDate": p["expected_completion_date"].isoformat() if isinstance(p["expected_completion_date"], (datetime, date)) else str(p["expected_completion_date"]),
         "actualCompletionDate": p["actual_completion_date"].isoformat() if isinstance(p["actual_completion_date"], (datetime, date)) else None,
+        "updatedAt": p["updated_at"].isoformat() if p.get("updated_at") and isinstance(p["updated_at"], (datetime, date)) else (str(p["updated_at"]) if p.get("updated_at") else datetime.utcnow().isoformat()),
         "tenderInvited": bool(p["tender_invited"]),
         "ucFiled": bool(p["uc_filed"]),
         "dataCompleteness": p["data_completeness"] or "COMPLETE",
@@ -855,6 +883,50 @@ def get_project_audit(work_id: str, request: Request):
             for r in rows
         ]
     }
+
+@app.get("/api/audit/recent")
+def list_recent_audit(request: Request):
+    user = require_user(request)
+    conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+    cur = conn.cursor()
+
+    scope_filter = ""
+    params = []
+    if user["role"] == "STATE_NODAL" and user["stateCode"]:
+        scope_filter = "WHERE p.state_code = %s"
+        params = [user["stateCode"]]
+    elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
+        scope_filter = "WHERE p.district_id = %s"
+        params = [user["districtId"]]
+    elif user["role"] == "MP" and user["constituencyId"]:
+        scope_filter = "WHERE p.constituency_id = %s"
+        params = [user["constituencyId"]]
+
+    cur.execute(f"""
+        SELECT a.id, a.work_id, u.full_name as user_name, a.role, a.action, a.timestamp, a.reason, a.from_status, a.to_status
+        FROM flag_actions a
+        JOIN users u ON a.user_id = u.id
+        JOIN projects p ON a.work_id = p.work_id
+        {scope_filter}
+        ORDER BY a.timestamp DESC LIMIT 10
+    """, params)
+    rows = cur.fetchall()
+    conn.close()
+
+    return [
+        {
+            "id": str(r["id"]),
+            "workId": r["work_id"],
+            "userName": r["user_name"],
+            "role": r["role"],
+            "action": r["action"],
+            "timestamp": r["timestamp"].isoformat() if isinstance(r["timestamp"], (datetime, date)) else str(r["timestamp"]),
+            "reason": r["reason"] or "",
+            "fromStatus": r["from_status"] or "NORMAL",
+            "toStatus": r["to_status"] or "NORMAL",
+        }
+        for r in rows
+    ]
 
 # ==============================================================================
 # 5. Administration Endpoints
