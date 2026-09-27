@@ -27,6 +27,7 @@ import type {
   DashboardSummary,
   DemoAccount,
   DistrictOption,
+  EscalatedProjectItem,
   HealthStatus,
   ListProjectsParams,
   LoginInput,
@@ -837,6 +838,83 @@ export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListProjectsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEscalatedProjectsUrl = () => {
+
+
+
+
+  return `/api/projects/escalated`
+}
+
+/**
+ * @summary List escalated projects pending review in user jurisdiction
+ */
+export const listEscalatedProjects = async ( options?: Parameters<typeof customFetch>[1]): Promise<EscalatedProjectItem[]> => {
+
+  return customFetch<EscalatedProjectItem[]>(getListEscalatedProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEscalatedProjectsQueryKey = () => {
+    return [
+    `/api/projects/escalated`
+    ] as const;
+    }
+
+
+export const getListEscalatedProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listEscalatedProjects>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEscalatedProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEscalatedProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEscalatedProjects>>> = ({ signal }) => listEscalatedProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEscalatedProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEscalatedProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listEscalatedProjects>>>
+export type ListEscalatedProjectsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List escalated projects pending review in user jurisdiction
+ */
+
+export function useListEscalatedProjects<TData = Awaited<ReturnType<typeof listEscalatedProjects>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEscalatedProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEscalatedProjectsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

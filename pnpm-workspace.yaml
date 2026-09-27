@@ -35,6 +35,12 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 packages:
+  - backend-data
+  - frontend-dashboard
+  - ml-engine
+  - data-pipeline
+  - backend-case
+  - cloud-devops
   - artifacts/*
   - lib/*
   - lib/integrations/*
@@ -67,12 +73,6 @@ catalog:
   zod: ^3.25.76
 
 autoInstallPeers: false
-
-onlyBuiltDependencies:
-  - '@swc/core'
-  - esbuild
-  - msw
-  - unrs-resolver
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
@@ -160,3 +160,6 @@ overrides:
   esbuild: "0.28.2"
   # orval pins js-yaml to an exact version older than the CVE fix (>=4.3.2)
   js-yaml: '4.3.2'
+
+allowBuilds:
+  esbuild: true

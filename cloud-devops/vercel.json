@@ -1,0 +1,15 @@
+{
+  "buildCommand": "pnpm --filter @workspace/frontend-dashboard run build",
+  "outputDirectory": "frontend-dashboard/dist/public",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://savidhan-api-server.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

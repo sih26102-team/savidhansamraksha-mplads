@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/data-pipeline",
+  "version": "1.0.0",
+  "description": "CivicShield Data Pipeline, Synthetic Seed Generators & Database ETL Suite",
+  "author": "Phaneendra <phaneendra@savidhansamraksha.gov.in>",
+  "type": "module",
+  "scripts": {
+    "seed": "node ./scripts/seed-projects.mjs",
+    "seed:users": "node ./scripts/seed-demo-users.mjs",
+    "rescore": "node ./scripts/rescore-all-projects-ml.mjs",
+    "verify": "node ./scripts/verify-scores.mjs",
+    "etl:py": "python etl_pipeline.py"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/ml-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

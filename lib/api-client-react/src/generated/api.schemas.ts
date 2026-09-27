@@ -81,6 +81,10 @@ export interface DemoAccount {
   password: string;
   authority: DemoAccountAuthority;
   scopeLabel: string;
+  stateCode?: string;
+  districtId?: string;
+  constituencyId?: string;
+  mpCategory?: string;
 }
 
 export interface StateOption {
@@ -110,6 +114,7 @@ export interface DashboardTotals {
   lowRisk: number;
   dataIncomplete: number;
   averageProgress: number;
+  escalatedCount?: number;
 }
 
 export interface CountPoint {
@@ -167,6 +172,7 @@ export const ProjectListItemWorkflowStatus = {
   RESOLVED: 'RESOLVED',
   DISMISSED: 'DISMISSED',
   ESCALATED: 'ESCALATED',
+  ESCALATED_STATE: 'ESCALATED_STATE',
   CLOSED: 'CLOSED',
 } as const;
 
@@ -296,6 +302,7 @@ export const ProjectActionInputAction = {
   ESCALATE: 'ESCALATE',
   CLOSE: 'CLOSE',
   REVIEW: 'REVIEW',
+  ACKNOWLEDGE: 'ACKNOWLEDGE',
 } as const;
 
 export interface ProjectActionInput {
@@ -313,6 +320,7 @@ export const ProjectActionResultWorkflowStatus = {
   RESOLVED: 'RESOLVED',
   DISMISSED: 'DISMISSED',
   ESCALATED: 'ESCALATED',
+  ESCALATED_STATE: 'ESCALATED_STATE',
   CLOSED: 'CLOSED',
 } as const;
 
@@ -320,6 +328,50 @@ export interface ProjectActionResult {
   workId: string;
   workflowStatus: ProjectActionResultWorkflowStatus;
   audit: AuditEntry;
+}
+
+export type EscalatedProjectItemRiskLevel = typeof EscalatedProjectItemRiskLevel[keyof typeof EscalatedProjectItemRiskLevel];
+
+
+export const EscalatedProjectItemRiskLevel = {
+  HIGH: 'HIGH',
+  MODERATE: 'MODERATE',
+  LOW: 'LOW',
+  DATA_INCOMPLETE: 'DATA_INCOMPLETE',
+} as const;
+
+export type EscalatedProjectItemWorkflowStatus = typeof EscalatedProjectItemWorkflowStatus[keyof typeof EscalatedProjectItemWorkflowStatus];
+
+
+export const EscalatedProjectItemWorkflowStatus = {
+  OPEN: 'OPEN',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  RESOLVED: 'RESOLVED',
+  DISMISSED: 'DISMISSED',
+  ESCALATED: 'ESCALATED',
+  ESCALATED_STATE: 'ESCALATED_STATE',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface EscalatedProjectItem {
+  workId: string;
+  description: string;
+  category: string;
+  state: string;
+  district: string;
+  agency: string;
+  sanctionedAmount: number;
+  expenditure: number;
+  physicalProgress: number;
+  riskScore: number;
+  riskLevel: EscalatedProjectItemRiskLevel;
+  workflowStatus: EscalatedProjectItemWorkflowStatus;
+  escalatedByRole: string;
+  escalatedByUserName: string;
+  escalationReason: string;
+  escalatedAt: string;
+  fiscalYear: string;
+  updatedAt: string;
 }
 
 export type ListProjectsParams = {
@@ -360,6 +412,7 @@ export const ListProjectsWorkflowStatus = {
   RESOLVED: 'RESOLVED',
   DISMISSED: 'DISMISSED',
   ESCALATED: 'ESCALATED',
+  ESCALATED_STATE: 'ESCALATED_STATE',
   CLOSED: 'CLOSED',
 } as const;
 

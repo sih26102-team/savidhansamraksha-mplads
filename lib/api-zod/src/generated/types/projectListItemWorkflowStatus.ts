@@ -15,5 +15,6 @@ export const ProjectListItemWorkflowStatus = {
   RESOLVED: 'RESOLVED',
   DISMISSED: 'DISMISSED',
   ESCALATED: 'ESCALATED',
+  ESCALATED_STATE: 'ESCALATED_STATE',
   CLOSED: 'CLOSED',
 } as const;

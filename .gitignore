@@ -47,3 +47,15 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Modular domain build artifacts
+backend-data/dist/
+frontend-dashboard/dist/
+ml-engine/dist/
+backend-case/dist/
+data-pipeline/__pycache__/
+ml-engine/__pycache__/
+*.pyc
+
+# PostgreSQL local data dir
+.postgres-savidhan/

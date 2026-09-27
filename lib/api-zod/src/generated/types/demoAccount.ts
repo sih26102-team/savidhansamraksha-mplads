@@ -13,4 +13,8 @@ export interface DemoAccount {
   password: string;
   authority: DemoAccountAuthority;
   scopeLabel: string;
+  stateCode?: string;
+  districtId?: string;
+  constituencyId?: string;
+  mpCategory?: string;
 }

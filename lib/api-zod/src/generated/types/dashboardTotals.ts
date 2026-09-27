@@ -15,4 +15,5 @@ export interface DashboardTotals {
   lowRisk: number;
   dataIncomplete: number;
   averageProgress: number;
+  escalatedCount?: number;
 }

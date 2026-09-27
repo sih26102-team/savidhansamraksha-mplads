@@ -170,7 +170,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, CLOSED]
+            enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, ESCALATED_STATE, CLOSED]
         - name: category
           in: query
           schema:
@@ -197,6 +197,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectListResponse"
+        "401":
+          description: Not authenticated
+  /projects/escalated:
+    get:
+      operationId: listEscalatedProjects
+      tags: [projects]
+      summary: List escalated projects pending review in user jurisdiction
+      responses:
+        "200":
+          description: Escalated projects list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EscalatedProjectItem"
         "401":
           description: Not authenticated
   /projects/{workId}:
@@ -361,6 +377,14 @@ components:
           enum: [MINISTRY, STATE_NODAL, DISTRICT_AUTHORITY, MP]
         scopeLabel:
           type: string
+        stateCode:
+          type: string
+        districtId:
+          type: string
+        constituencyId:
+          type: string
+        mpCategory:
+          type: string
       required: [label, username, password, authority, scopeLabel]
     StateOption:
       type: object
@@ -441,6 +465,8 @@ components:
           type: integer
         averageProgress:
           type: number
+        escalatedCount:
+          type: integer
       required: [totalProjects, sanctionedAmount, expenditure, highRisk, moderateRisk, lowRisk, dataIncomplete, averageProgress]
     CountPoint:
       type: object
@@ -492,13 +518,13 @@ components:
         physicalProgress:
           type: number
         riskScore:
-          type: integer
+          type: number
         riskLevel:
           type: string
           enum: [HIGH, MODERATE, LOW, DATA_INCOMPLETE]
         workflowStatus:
           type: string
-          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, CLOSED]
+          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, ESCALATED_STATE, CLOSED]
         fiscalYear:
           type: string
         updatedAt:
@@ -640,7 +666,7 @@ components:
       properties:
         action:
           type: string
-          enum: [RESOLVE, DISMISS, ESCALATE, CLOSE, REVIEW]
+          enum: [RESOLVE, DISMISS, ESCALATE, CLOSE, REVIEW, ACKNOWLEDGE]
         reason:
           type: string
           minLength: 5
@@ -652,7 +678,7 @@ components:
           type: string
         workflowStatus:
           type: string
-          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, CLOSED]
+          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, ESCALATED_STATE, CLOSED]
         audit:
           $ref: "#/components/schemas/AuditEntry"
       required: [workId, workflowStatus, audit]
@@ -678,3 +704,45 @@ components:
         toStatus:
           type: ["string", "null"]
       required: [id, workId, userName, role, action, timestamp, reason]
+    EscalatedProjectItem:
+      type: object
+      properties:
+        workId:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        state:
+          type: string
+        district:
+          type: string
+        agency:
+          type: string
+        sanctionedAmount:
+          type: number
+        expenditure:
+          type: number
+        physicalProgress:
+          type: number
+        riskScore:
+          type: number
+        riskLevel:
+          type: string
+          enum: [HIGH, MODERATE, LOW, DATA_INCOMPLETE]
+        workflowStatus:
+          type: string
+          enum: [OPEN, UNDER_REVIEW, RESOLVED, DISMISSED, ESCALATED, ESCALATED_STATE, CLOSED]
+        escalatedByRole:
+          type: string
+        escalatedByUserName:
+          type: string
+        escalationReason:
+          type: string
+        escalatedAt:
+          type: string
+        fiscalYear:
+          type: string
+        updatedAt:
+          type: string
+      required: [workId, description, category, state, district, agency, sanctionedAmount, expenditure, physicalProgress, riskScore, riskLevel, workflowStatus, escalatedByRole, escalatedByUserName, escalationReason, escalatedAt, fiscalYear, updatedAt]

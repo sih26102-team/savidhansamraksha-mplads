@@ -57,7 +57,11 @@ export const GetDemoAccountsResponseItem = zod.object({
   "username": zod.string(),
   "password": zod.string(),
   "authority": zod.enum(['MINISTRY', 'STATE_NODAL', 'DISTRICT_AUTHORITY', 'MP']),
-  "scopeLabel": zod.string()
+  "scopeLabel": zod.string(),
+  "stateCode": zod.string().optional(),
+  "districtId": zod.string().optional(),
+  "constituencyId": zod.string().optional(),
+  "mpCategory": zod.string().optional()
 })
 export const GetDemoAccountsResponse = zod.array(GetDemoAccountsResponseItem)
 
@@ -140,7 +144,8 @@ export const GetDashboardSummaryResponse = zod.object({
   "moderateRisk": zod.number().int(),
   "lowRisk": zod.number().int(),
   "dataIncomplete": zod.number().int(),
-  "averageProgress": zod.number()
+  "averageProgress": zod.number(),
+  "escalatedCount": zod.number().int().optional()
 }),
   "riskDistribution": zod.array(zod.object({
   "label": zod.string(),
@@ -187,7 +192,7 @@ export const ListProjectsQueryParams = zod.object({
   "stateCode": zod.coerce.string().optional(),
   "districtId": zod.coerce.string().optional(),
   "riskLevel": zod.enum(['HIGH', 'MODERATE', 'LOW', 'DATA_INCOMPLETE']).optional(),
-  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'CLOSED']).optional(),
+  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'ESCALATED_STATE', 'CLOSED']).optional(),
   "category": zod.coerce.string().optional(),
   "fiscalYear": zod.coerce.string().optional(),
   "limit": zod.coerce.number().int().min(1).max(listProjectsQueryLimitMax).optional(),
@@ -205,14 +210,40 @@ export const ListProjectsResponse = zod.object({
   "sanctionedAmount": zod.number(),
   "expenditure": zod.number(),
   "physicalProgress": zod.number(),
-  "riskScore": zod.number().int(),
+  "riskScore": zod.number(),
   "riskLevel": zod.enum(['HIGH', 'MODERATE', 'LOW', 'DATA_INCOMPLETE']),
-  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'CLOSED']),
+  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'ESCALATED_STATE', 'CLOSED']),
   "fiscalYear": zod.string(),
   "updatedAt": zod.string()
 })),
   "total": zod.number().int()
 })
+
+
+/**
+ * @summary List escalated projects pending review in user jurisdiction
+ */
+export const ListEscalatedProjectsResponseItem = zod.object({
+  "workId": zod.string(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "state": zod.string(),
+  "district": zod.string(),
+  "agency": zod.string(),
+  "sanctionedAmount": zod.number(),
+  "expenditure": zod.number(),
+  "physicalProgress": zod.number(),
+  "riskScore": zod.number(),
+  "riskLevel": zod.enum(['HIGH', 'MODERATE', 'LOW', 'DATA_INCOMPLETE']),
+  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'ESCALATED_STATE', 'CLOSED']),
+  "escalatedByRole": zod.string(),
+  "escalatedByUserName": zod.string(),
+  "escalationReason": zod.string(),
+  "escalatedAt": zod.string(),
+  "fiscalYear": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListEscalatedProjectsResponse = zod.array(ListEscalatedProjectsResponseItem)
 
 
 /**
@@ -232,9 +263,9 @@ export const GetProjectResponse = zod.object({
   "sanctionedAmount": zod.number(),
   "expenditure": zod.number(),
   "physicalProgress": zod.number(),
-  "riskScore": zod.number().int(),
+  "riskScore": zod.number(),
   "riskLevel": zod.enum(['HIGH', 'MODERATE', 'LOW', 'DATA_INCOMPLETE']),
-  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'CLOSED']),
+  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'ESCALATED_STATE', 'CLOSED']),
   "fiscalYear": zod.string(),
   "updatedAt": zod.string()
 }).and(zod.object({
@@ -303,13 +334,13 @@ export const createProjectActionBodyReasonMin = 5;
 
 
 export const CreateProjectActionBody = zod.object({
-  "action": zod.enum(['RESOLVE', 'DISMISS', 'ESCALATE', 'CLOSE', 'REVIEW']),
+  "action": zod.enum(['RESOLVE', 'DISMISS', 'ESCALATE', 'CLOSE', 'REVIEW', 'ACKNOWLEDGE']),
   "reason": zod.string().min(createProjectActionBodyReasonMin)
 })
 
 export const CreateProjectActionResponse = zod.object({
   "workId": zod.string(),
-  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'CLOSED']),
+  "workflowStatus": zod.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ESCALATED', 'ESCALATED_STATE', 'CLOSED']),
   "audit": zod.object({
   "id": zod.string(),
   "workId": zod.string(),

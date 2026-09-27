@@ -1,0 +1,34 @@
+{
+  "model_version": "2.4.0-production",
+  "trained_at": "2026-09-27T00:00:00Z",
+  "weights": {
+    "isolation_forest_anomaly_weight": 0.40,
+    "heuristic_domain_weight": 0.60,
+    "divergence_penalty_multiplier": 55.0,
+    "cost_overrun_penalty_multiplier": 65.0,
+    "time_overrun_penalty_multiplier": 18.0,
+    "governance_penalty_multiplier": 18.0,
+    "evidence_integrity_penalty_multiplier": 18.0
+  },
+  "thresholds": {
+    "high_risk_cutoff": 70.0,
+    "moderate_risk_cutoff": 40.0,
+    "divergence_critical_threshold": 0.15,
+    "cost_overrun_threshold": 1.05,
+    "time_elapsed_critical_ratio": 0.90
+  },
+  "escalation_floor": {
+    "district_escalation": 75.80,
+    "state_escalation": 82.40,
+    "national_escalation": 88.90
+  },
+  "feature_indices": [
+    "costRatio",
+    "expenditureRate",
+    "progressRate",
+    "progressExpenditureDivergence",
+    "timeElapsedRatio",
+    "governanceComplianceScore",
+    "evidenceIntegrityScore"
+  ]
+}

@@ -1,0 +1,45 @@
+# ==============================================================================
+# Multi-stage Dockerfile for Frontend Dashboard (Vite + Nginx)
+# ==============================================================================
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+RUN npm install -g pnpm
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY lib/ ./lib/
+COPY frontend-dashboard/ ./frontend-dashboard/
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @workspace/frontend-dashboard run build
+
+# ==============================================================================
+# Nginx Static Serving Stage
+# ==============================================================================
+FROM nginx:alpine AS runner
+
+COPY --from=builder /app/frontend-dashboard/dist/public /usr/share/nginx/html
+
+# Custom Nginx reverse proxy configuration for Single Page Applications (SPA)
+RUN printf 'server {\n\
+    listen 80;\n\
+    server_name localhost;\n\
+    location / {\n\
+        root /usr/share/nginx/html;\n\
+        index index.html index.htm;\n\
+        try_files $uri $uri/ /index.html;\n\
+    }\n\
+    location /api/ {\n\
+        proxy_pass http://api-server:5000/api/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Upgrade $http_upgrade;\n\
+        proxy_set_header Connection "upgrade";\n\
+        proxy_set_header Host $host;\n\
+        proxy_cache_bypass $http_upgrade;\n\
+    }\n\
+}\n' > /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

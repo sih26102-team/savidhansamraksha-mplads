@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SavidhanSamraksha"
+description = "A full-stack MPLADS monitoring and risk intelligence platform for ministry, state, district, and parliamentary authorities, with scoped access, anomaly evidence, workflow actions, and audit history."
+version = "1.0.0"
+id = "artifacts/savidhan-samraksha"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26143
+
+[services.development]
+run = "pnpm --filter @workspace/savidhan-samraksha run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/savidhan-samraksha", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/savidhan-samraksha/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26143"
+BASE_PATH = "/"

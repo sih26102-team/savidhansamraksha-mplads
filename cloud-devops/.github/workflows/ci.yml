@@ -1,0 +1,51 @@
+name: CivicShield Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-and-build:
+    name: Build & Verify Modules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python ML Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ml-engine/requirements.txt
+
+      - name: Run ML Engine Self-Tests & Benchmarks
+        run: |
+          cd ml-engine
+          python risk_engine.py --test
+          python evaluate_models.py
+
+      - name: Install Node Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Monorepo Typecheck
+        run: pnpm run typecheck
+
+      - name: Monorepo Production Build
+        run: pnpm run build

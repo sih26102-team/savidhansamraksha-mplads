@@ -15,4 +15,5 @@ export const ProjectActionInputAction = {
   ESCALATE: 'ESCALATE',
   CLOSE: 'CLOSE',
   REVIEW: 'REVIEW',
+  ACKNOWLEDGE: 'ACKNOWLEDGE',
 } as const;
