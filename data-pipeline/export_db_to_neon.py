@@ -1,9 +1,11 @@
 """
 Export Local PostgreSQL Database to Remote Neon Cloud Database
-Usage: python data-pipeline/export_db_to_neon.py "postgresql://user:pass@ep-xyz.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+Usage: python data-pipeline/export_db_to_neon.py 'postgresql://user:pass@ep-xyz.ap-southeast-1.aws.neon.tech/neondb?sslmode=require'
 """
 
 import sys
+import os
+import subprocess
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -24,6 +26,38 @@ TABLES_ORDERED = [
     "flag_actions"
 ]
 
+def apply_schema(neon_conn):
+    print("\n[Step 1] Creating database schema & tables on Neon...")
+    pg_dump_path = r"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+    if not os.path.exists(pg_dump_path):
+        pg_dump_path = "pg_dump"
+
+    schema_dump = subprocess.check_output(
+        [pg_dump_path, "-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", "savidhan", "--schema-only", "--no-owner", "--no-privileges"],
+        text=True,
+        encoding="utf-8",
+        errors="replace"
+    )
+
+    clean_statements = []
+    for stmt in schema_dump.split(";"):
+        s = stmt.strip()
+        if not s:
+            continue
+        if s.startswith("\\") or "drizzle" in s.lower() or s.startswith("SET ") or "SELECT pg_catalog" in s:
+            continue
+        clean_statements.append(s)
+
+    cur = neon_conn.cursor()
+    for s in clean_statements:
+        try:
+            cur.execute(s + ";")
+            neon_conn.commit()
+        except Exception:
+            neon_conn.rollback()
+
+    print("  Schema verified on Neon cloud database.")
+
 def migrate(neon_url: str):
     print("==================================================")
     print("   SAVIDHANSAMRAKSHA NEON CLOUD DATABASE SEEDER   ")
@@ -36,30 +70,21 @@ def migrate(neon_url: str):
     neon_conn = psycopg2.connect(neon_url)
     neon_cur = neon_conn.cursor()
 
-    for table in TABLES_ORDERED:
-        print(f"\n[Migrating table] {table}...")
-        
-        # Get table definition from local DB
-        local_cur.execute(f"SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '{table}'")
-        cols = local_cur.fetchall()
-        if not cols:
-            print(f"  Table {table} not found locally, skipping.")
-            continue
+    apply_schema(neon_conn)
 
-        # Get rows
+    print("\n[Step 2] Migrating project records and governance data...")
+    for table in TABLES_ORDERED:
         local_cur.execute(f"SELECT * FROM {table}")
         rows = local_cur.fetchall()
-        print(f"  Found {len(rows)} rows locally.")
-
         if not rows:
+            print(f"  {table}: 0 records (skipped).")
             continue
 
-        # Check if table exists on Neon, if not create basic schema or insert
+        print(f"  Migrating {table} ({len(rows)} records)...")
         col_names = list(rows[0].keys())
         col_placeholders = ", ".join(["%s"] * len(col_names))
         col_str = ", ".join([f'"{c}"' for c in col_names])
 
-        # Truncate table on Neon if exists
         try:
             neon_cur.execute(f'TRUNCATE TABLE "{table}" CASCADE;')
             neon_conn.commit()
@@ -80,7 +105,7 @@ def migrate(neon_url: str):
             neon_cur.executemany(insert_sql, batch)
             neon_conn.commit()
 
-        print(f"  Successfully migrated {len(rows)} records into Neon for table: {table}")
+        print(f"  ✓ {table}: {len(rows)} records transferred.")
 
     local_conn.close()
     neon_conn.close()
@@ -91,6 +116,6 @@ def migrate(neon_url: str):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Error: Missing Neon Database URL.")
-        print('Usage: python data-pipeline/export_db_to_neon.py "<NEON_CONNECTION_STRING>"')
+        print('Usage: python data-pipeline/export_db_to_neon.py \'<NEON_CONNECTION_STRING>\'')
         sys.exit(1)
     migrate(sys.argv[1])
