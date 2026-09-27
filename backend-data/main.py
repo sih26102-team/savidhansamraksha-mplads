@@ -843,18 +843,31 @@ def get_project_detail(work_id: str, request: Request):
             }
             for prog in progress
         ],
-        "findings": ml_eval["findings"],
+        "findings": (function_combined := [
+            *ml_eval["findings"],
+            *[
+                {
+                    "severity": rf.get("severity") or "MODERATE",
+                    "title": rf.get("title") or "Recorded Compliance Notice",
+                    "explanation": rf.get("explanation") or "",
+                    "evidence": rf.get("evidence") or "",
+                    "module": rf.get("module") or "ADMINISTRATIVE_AUDIT",
+                }
+                for rf in findings
+                if rf.get("title") not in {f["title"] for f in ml_eval["findings"]}
+            ]
+        ]),
         "modules": [
             {
                 "name": "Financial & Temporal",
-                "status": "FLAGGED" if ml_eval["riskScore"] >= 70.0 else "AVAILABLE",
+                "status": "FLAGGED" if any(f.get("module") == "FINANCIAL_TEMPORAL" and f.get("severity") in ("HIGH", "MODERATE") for f in function_combined) or (ml_eval["riskScore"] >= 70.0 and any(f.get("module") in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR") for f in function_combined)) else "AVAILABLE",
                 "score": ml_eval["moduleScores"]["financialTemporalScore"],
                 "summary": "Multi-factor expenditure velocity vs ground measurement audit.",
-                "evidence": [f["explanation"] for f in ml_eval["findings"] if f["module"] == "FINANCIAL_TEMPORAL"] or ["Milestones aligned with scheduled completion dates."],
+                "evidence": [f["explanation"] for f in function_combined if f["module"] in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR")] or ["Milestones aligned with scheduled completion dates."],
             },
             {
                 "name": "Visual & Spatial",
-                "status": "AVAILABLE",
+                "status": "FLAGGED" if any(f.get("module") in ("DUPLICATE_CROSS_PROJECT_PHOTO", "DUPLICATE_SEQUENTIAL_PHOTO", "MISSING_EXIF_METADATA", "GEOFENCE_MISMATCH_ANOMALY", "VISUAL_SPATIAL") for f in function_combined) or any("OUTSIDE" in (ph.get("gps_status") or "").upper() or "DUPLICATE" in (ph.get("duplicate_status") or "").upper() for ph in photos) else "AVAILABLE",
                 "score": ml_eval["moduleScores"]["visualSpatialScore"],
                 "summary": "Photographic ground evidence and EXIF coordinate cluster analysis.",
                 "evidence": [f"{photo['stage']}: {photo['gps_status']}; {photo['duplicate_status']}" for photo in photos] or ["Verified field inspection photographs."],
@@ -867,6 +880,7 @@ def get_project_detail(work_id: str, request: Request):
                 "evidence": ["Inconclusive — imagery unavailable", "NDVI and NDBI comparison simulated for demonstration."],
             }
         ],
+
         "photos": [
             {
                 "id": str(photo["id"]),

@@ -436,10 +436,23 @@ def generate_reasoning(
             "title": "Timeline Overrun / Milestone Slippage",
             "explanation": (
                 f"Time elapsed ratio is {round(features['timeElapsedRatio']*100, 1)}% "
-                f"of planned duration with incomplete works."
+                f"of planned duration with incomplete works ({round(features['progressRate']*100, 1)}% completed)."
             ),
             "evidence": (
                 "Target completion deadline breached without formal extension granted."
+            ),
+            "module": "TEMPORAL_MONITOR",
+        })
+    elif features["timeElapsedRatio"] > 1.1 and features["progressRate"] < 1.0:
+        findings.append({
+            "severity": "HIGH" if features["timeElapsedRatio"] > 1.5 else "MODERATE",
+            "title": "Completion Deadline Exceeded",
+            "explanation": (
+                f"Contractual deadline has passed (time consumed: {round(features['timeElapsedRatio']*100, 1)}% of schedule) "
+                f"with physical progress remaining at {round(features['progressRate']*100, 1)}%."
+            ),
+            "evidence": (
+                "Works remain open past scheduled completion date without official extension on record."
             ),
             "module": "TEMPORAL_MONITOR",
         })
@@ -462,20 +475,70 @@ def generate_reasoning(
             "module": "VISUAL_SPATIAL",
         })
 
-    if not findings:
+    # 5. Administrative Escalation
+    workflow_status = project.get("workflowStatus") or ""
+    if workflow_status in ("ESCALATED", "ESCALATED_STATE"):
+        esc_reason = project.get("escalationReason") or "Elevated by district/state authority review."
         findings.append({
-            "severity": "LOW",
-            "title": "Normal Operational Parameters",
+            "severity": "HIGH",
+            "title": "Active Authority Escalation (Priority Oversight)",
             "explanation": (
-                "Project telemetry conforms to standard fiscal and physical milestones."
+                "A District Nodal Officer or State Authority has formally escalated this project "
+                "for priority investigation, administrative review, or inquiry."
             ),
             "evidence": (
-                "Verified tender, milestone sign-offs, and complete documentation."
+                f"Workflow status is '{workflow_status}'. Statutory escalation risk floor applied (+75.80 points) "
+                f"to ensure priority queue placement. Reason: {esc_reason}"
             ),
-            "module": "BASELINE_AUDIT",
+            "module": "ADMINISTRATIVE_AUDIT",
         })
 
+    # 6. Incomplete Data Records
+    if project.get("dataCompleteness") == "INCOMPLETE":
+        findings.append({
+            "severity": "HIGH",
+            "title": "Statutory Data Incompleteness",
+            "explanation": (
+                "Essential project documentation or milestone records are missing from the public registry."
+            ),
+            "evidence": (
+                "Missing mandatory statutory telemetry (tender/milestone filings). Project cannot be validated without physical audit."
+            ),
+            "module": "ADMINISTRATIVE_AUDIT",
+        })
+
+    if not findings:
+        if risk_score >= 70.0:
+            findings.append({
+                "severity": "HIGH",
+                "title": "Elevated Composite Risk Flag",
+                "explanation": "Multiple operational indicators place this project in the high-priority oversight category.",
+                "evidence": "Composite audit score exceeded safety threshold. Human verification recommended.",
+                "module": "BASELINE_AUDIT",
+            })
+        elif risk_score >= 40.0:
+            findings.append({
+                "severity": "MODERATE",
+                "title": "Moderate Operational Variance",
+                "explanation": "Project telemetry reflects minor milestone or timing variances.",
+                "evidence": "Routine field inspection advised during next reporting cycle.",
+                "module": "BASELINE_AUDIT",
+            })
+        else:
+            findings.append({
+                "severity": "LOW",
+                "title": "Normal Operational Parameters",
+                "explanation": (
+                    "Project telemetry conforms to standard fiscal and physical milestones."
+                ),
+                "evidence": (
+                    "Verified tender, milestone sign-offs, and complete documentation."
+                ),
+                "module": "BASELINE_AUDIT",
+            })
+
     return findings
+
 
 
 # ---------------------------------------------------------------------------
