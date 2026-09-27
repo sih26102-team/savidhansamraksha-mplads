@@ -157,16 +157,31 @@ TABLES_ORDERED = [
 ]
 
 def get_neon_connection(neon_url: str):
-    # If using pooled connection with -pooler, clean channel_binding if present
     clean_url = neon_url.strip()
-    return psycopg2.connect(
-        clean_url,
-        connect_timeout=30,
-        keepalives=1,
-        keepalives_idle=20,
-        keepalives_interval=10,
-        keepalives_count=5
-    )
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            return psycopg2.connect(
+                clean_url,
+                connect_timeout=20,
+                keepalives=1,
+                keepalives_idle=20,
+                keepalives_interval=10,
+                keepalives_count=5
+            )
+        except psycopg2.OperationalError as e:
+            if attempt == max_retries - 1:
+                # If pooler fails, attempt connecting to direct endpoint by removing -pooler
+                if "-pooler" in clean_url:
+                    direct_url = clean_url.replace("-pooler", "")
+                    print(f"  Attempting Direct Neon connection fallback: {direct_url[:30]}...")
+                    try:
+                        return psycopg2.connect(direct_url, connect_timeout=20)
+                    except Exception:
+                        pass
+                raise e
+            print(f"  [Connecting to Neon] Attempt {attempt+1}/{max_retries} failed ({e}). Retrying in 2s...")
+            time.sleep(2)
 
 def migrate(neon_url: str):
     print("==================================================")
