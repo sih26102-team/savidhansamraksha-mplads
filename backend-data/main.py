@@ -66,7 +66,7 @@ def fix_sequences():
                 row = cur.fetchone()
                 seq = row[0] if row else None
                 if seq:
-                    cur.execute(f"SELECT setval('{seq}', GREATEST(COALESCE((SELECT MAX(id) FROM {tbl}), 0), 1), true)")
+                    cur.execute(f"SELECT setval('{seq}', GREATEST(COALESCE((SELECT MAX(id::bigint) FROM {tbl}), 0), 1) + 10, true)")
                     print(f"[Startup] Reset sequence {seq} for {tbl}")
             except Exception as e:
                 print(f"[Startup] Sequence check skipped for {tbl}: {e}")
@@ -148,9 +148,36 @@ def json_serial(obj):
 # 1. Health & Meta Endpoints
 # ==============================================================================
 
+BUILD_VERSION = "2026-09-27-v4-monotonic-ids"
+
 @app.get("/api/healthz")
 def healthz():
-    return {"status": "ok"}
+    return {"status": "ok", "version": BUILD_VERSION}
+
+@app.get("/api/admin/fix-db")
+def fix_db_endpoint():
+    """Manual trigger to inspect and reset all sequences well past MAX(id)."""
+    conn = psycopg2.connect(DB_URL)
+    cur = conn.cursor()
+    results = {}
+    for tbl in ["flag_actions", "project_escalations", "risk_flags", "progress_updates", "payments", "assets"]:
+        try:
+            cur.execute(f"SELECT pg_get_serial_sequence('{tbl}', 'id')")
+            row = cur.fetchone()
+            seq = row[0] if row else None
+            cur.execute(f"SELECT COALESCE(MAX(id::bigint), 0) FROM {tbl}")
+            max_id = cur.fetchone()[0]
+            if seq:
+                cur.execute(f"SELECT setval('{seq}', %s, true)", [max_id + 50])
+                results[tbl] = {"seq": seq, "max_id": max_id, "new_seq_val": max_id + 50}
+            else:
+                results[tbl] = {"seq": None, "max_id": max_id}
+        except Exception as e:
+            results[tbl] = {"error": str(e)}
+            conn.rollback()
+    conn.commit()
+    conn.close()
+    return results
 
 # ==============================================================================
 # 2. Authentication Endpoints
@@ -906,7 +933,7 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
         """, [new_status, p["work_id"]])
 
         # Safely determine next unique ID to completely eliminate sequence desync
-        cur.execute("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM flag_actions")
+        cur.execute("SELECT COALESCE(MAX(id::bigint), 0) + 1 AS next_id FROM flag_actions")
         next_action_id = cur.fetchone()["next_id"]
 
         cur.execute("""
@@ -939,7 +966,7 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
             esc_cur = esc_conn.cursor()
             target_role = "STATE_NODAL" if new_status == "ESCALATED" else "MINISTRY"
 
-            esc_cur.execute("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM project_escalations")
+            esc_cur.execute("SELECT COALESCE(MAX(id::bigint), 0) + 1 AS next_id FROM project_escalations")
             next_esc_id = esc_cur.fetchone()["next_id"]
 
             esc_cur.execute("""
