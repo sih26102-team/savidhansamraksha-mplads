@@ -836,6 +836,7 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
     old_status = p["workflow_status"] or "OPEN"
     act = (body.action or "").upper()
     role = user.get("role", "AUTHORITY")
+    user_identifier = str(user.get("id") or user.get("username") or "unknown")
 
     if act in ("FLAG_FOR_INSPECTION", "FLAG"):
         new_status = "FLAGGED"
@@ -844,11 +845,6 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
     elif act in ("ESCALATE_TO_NATIONAL", "ESCALATE_NATIONAL"):
         new_status = "ESCALATED"
     elif act == "ESCALATE":
-        # Hierarchical escalation logic:
-        # District Authority escalates to State Nodal -> ESCALATED
-        # State Nodal Officer escalates to Central Ministry -> ESCALATED_STATE
-        # Member of Parliament escalates to Central Ministry -> ESCALATED_STATE
-        # Central Ministry -> ESCALATED_STATE
         if role == "DISTRICT_AUTHORITY":
             new_status = "ESCALATED"
         else:
@@ -868,44 +864,53 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
     else:
         new_status = act
 
-    # Update project
-    cur.execute("""
-        UPDATE projects
-        SET workflow_status = %s, updated_at = NOW()
-        WHERE work_id = %s
-    """, [new_status, p["work_id"]])
+    action_id = "1"
 
-    # Record flag_action
-    user_identifier = str(user.get("id") or user.get("username") or "1")
-    cur.execute("""
-        INSERT INTO flag_actions (work_id, user_id, role, action, reason, from_status, to_status, timestamp)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-        RETURNING id, timestamp
-    """, [p["work_id"], user_identifier, role, body.action, body.reason, old_status, new_status])
-    action_row = cur.fetchone()
+    # --- Main transaction: update status + audit record ---
+    try:
+        cur.execute("""
+            UPDATE projects
+            SET workflow_status = %s, updated_at = NOW()
+            WHERE work_id = %s
+        """, [new_status, p["work_id"]])
 
-    # Record escalation if escalated
+        cur.execute("""
+            INSERT INTO flag_actions (work_id, user_id, role, action, reason, from_status, to_status, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            RETURNING id
+        """, [p["work_id"], user_identifier, role, body.action, body.reason, old_status, new_status])
+        action_row = cur.fetchone()
+        if action_row:
+            action_id = str(action_row["id"])
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"[Action] Core action failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Action failed: {str(e)}")
+
+    conn.close()
+
+    # --- Secondary: record escalation in separate connection (non-fatal) ---
     if new_status in ("ESCALATED", "ESCALATED_STATE"):
         try:
+            esc_conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+            esc_cur = esc_conn.cursor()
             target_role = "STATE_NODAL" if new_status == "ESCALATED" else "MINISTRY"
-            cur.execute("""
+            esc_cur.execute("""
                 INSERT INTO project_escalations (work_id, escalated_by_user_id, escalated_by_role, target_role, target_scope, escalation_reason, status, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', NOW())
             """, [
-                p["work_id"],
-                user_identifier,
-                role,
-                target_role,
-                user.get("stateCode") or "NATIONAL",
-                body.reason
+                p["work_id"], user_identifier, role, target_role,
+                user.get("stateCode") or "NATIONAL", body.reason
             ])
-        except Exception as e:
-            print(f"[Action] Warning inserting project escalation: {e}")
+            esc_conn.commit()
+            esc_conn.close()
+        except Exception as esc_err:
+            print(f"[Action] Non-fatal: escalation log failed: {esc_err}")
 
-    conn.commit()
-    conn.close()
-
-    # Generate Python audit log entry
+    # --- Audit hash (non-fatal) ---
     audit_hash = "0" * 64
     try:
         audit_entry = create_audit_log_entry(
@@ -925,7 +930,7 @@ def perform_project_action(work_id: str, body: ProjectActionRequest, request: Re
         "success": True,
         "workId": p["work_id"],
         "workflowStatus": new_status,
-        "actionId": str(action_row["id"]) if action_row else "1",
+        "actionId": action_id,
         "auditHash": audit_hash,
     }
 
