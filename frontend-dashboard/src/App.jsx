@@ -1410,6 +1410,14 @@ function ActionPanel({ project, readOnly, userRole }) {
         </div>)}
     </div>);
 }
+function PhotoBadge({ label, value, ok }) {
+    const color = ok === true ? '#2a7e5a' : ok === false ? '#b5544c' : '#a17e4a';
+    return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, color, background: color + '18', border: `1px solid ${color}40`, borderRadius: '4px', padding: '2px 7px' }}>
+            {value || label}
+        </span>
+    );
+}
 function ProjectDetailPage() {
     const { workId = '' } = useParams();
     const current = useGetCurrentUser();
@@ -1420,6 +1428,10 @@ function ProjectDetailPage() {
     if (project.isError || !project.data)
         return <PageFrame eyebrow="PROJECT FILE" title="Evidence file unavailable"><ErrorState onRetry={() => project.refetch()} message="This work ID is not available in the current authority scope."/></PageFrame>;
     const item = project.data;
+    const hasPhotos = Array.isArray(item.photos) && item.photos.length > 0;
+    const ifScore = item.isolationForestScore;
+    const ifStatus = item.isolationForestStatus;
+    const heuristicScore = item.heuristicScore;
     return (<PageFrame eyebrow={`PROJECT FILE / ${item.workId}`} title={item.description || item.title || item.workId} subtitle={`${item.district || '—'}${item.state ? `, ${item.state}` : ''} · ${categoryDisplayNames[item.category] || item.category || 'General'} · ${item.fiscalYear || '—'}`} actions={<Link href="/projects" className="button button-secondary" data-testid="link-back-projects">
           <ChevronLeft size={14}/> Back to projects
         </Link>}>
@@ -1468,25 +1480,104 @@ function ProjectDetailPage() {
               </div>
               <span className="ai-tag"><Sparkles size={12}/> AI-assisted</span>
             </div>
-            <p className="disclaimer">These are model-generated signals based on available records and imagery. They are not legal findings.</p>
+            <p className="disclaimer">These are model-generated signals based on available records and imagery. They are not legal findings. Each flag includes specific evidence and is subject to human review.</p>
+
+            {/* Isolation Forest score breakdown — transparent, not a black box */}
+            {ifScore !== undefined && ifScore !== null && (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px', padding: '10px 14px', background: '#0e2537', borderRadius: '6px', border: '1px solid #1e3d57' }}>
+                    <div style={{ fontSize: '10px', color: '#91a4b4', fontWeight: 600, width: '100%', letterSpacing: '0.06em' }}>ML SCORE BREAKDOWN</div>
+                    <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', color: '#a8bac6' }}>
+                            Composite: <strong style={{ color: '#f0c070' }}>{(Number(item.riskScore) || 0).toFixed(2)}</strong>
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#a8bac6' }}>
+                            Heuristic (70%): <strong style={{ color: '#7abfcf' }}>{heuristicScore !== undefined ? Number(heuristicScore).toFixed(2) : '—'}</strong>
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#a8bac6' }}>
+                            Isolation Forest (30%): <strong style={{ color: ifStatus === 'OUTLIER' ? '#e07a5f' : '#6bba9a' }}>{Number(ifScore).toFixed(2)}</strong>
+                            <span style={{ marginLeft: '5px', fontSize: '10px', opacity: 0.75 }}>({ifStatus})</span>
+                        </span>
+                    </div>
+                </div>
+            )}
+
             <div className="finding-list">
-              {item.findings.map((finding, index) => (<div className="finding" key={`${finding.title}-${index}`}>
-                  <div className={`finding-marker finding-${finding.severity.toLowerCase()}`}>
-                    <AlertTriangle size={14}/>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <strong>{finding.title}</strong>
-                      <StatusPill value={finding.severity}/>
+              {item.findings.map((finding, index) => {
+                const isIF = finding.module === 'UNEXPLAINED_OUTLIER_ANOMALY';
+                const isVisual = ['DUPLICATE_CROSS_PROJECT_PHOTO','DUPLICATE_SEQUENTIAL_PHOTO','MISSING_EXIF_METADATA','GEOFENCE_MISMATCH_ANOMALY'].includes(finding.module);
+                const moduleTag = isIF ? 'Isolation Forest' : isVisual ? 'Visual Engine' : 'Domain Rules';
+                const moduleColor = isIF ? '#c06090' : isVisual ? '#5090c0' : '#6a9a7a';
+                return (<div className="finding" key={`${finding.title}-${index}`}>
+                    <div className={`finding-marker finding-${finding.severity.toLowerCase()}`}>
+                      <AlertTriangle size={14}/>
                     </div>
-                    <p>{finding.explanation}</p>
-                    <div className="finding-evidence">
-                      <FileSearch size={12}/>
-                      <span><strong>Evidence:</strong> {finding.evidence}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
+                        <strong>{finding.title}</strong>
+                        <StatusPill value={finding.severity}/>
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: moduleColor, background: moduleColor + '20', border: `1px solid ${moduleColor}50`, borderRadius: '4px', padding: '1px 6px', letterSpacing: '0.05em' }}>
+                            {moduleTag}
+                        </span>
+                      </div>
+                      <p>{finding.explanation}</p>
+                      <div className="finding-evidence">
+                        <FileSearch size={12}/>
+                        <span><strong>Evidence:</strong> {finding.evidence}</span>
+                      </div>
                     </div>
-                  </div>
-                </div>))}
+                  </div>);
+              })}
             </div>
+          </section>
+
+          {/* Photos & Visual Evidence panel */}
+          <section className="surface-card" data-testid="section-photos">
+            <div className="section-heading">
+              <div>
+                <div className="eyebrow">VISUAL EVIDENCE</div>
+                <h3>Field photographs</h3>
+              </div>
+              <span style={{ fontSize: '10px', color: '#7b8d9a' }}>{hasPhotos ? `${item.photos.length} photo${item.photos.length > 1 ? 's' : ''}` : 'No photos on record'}</span>
+            </div>
+            {!hasPhotos ? (
+                <div style={{ padding: '18px 0', textAlign: 'center', fontSize: '12px', color: '#7b8d9a' }}>
+                    No field photographs have been submitted for this project yet.
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {item.photos.map((photo) => {
+                        const gpsBad = photo.gpsStatus && (photo.gpsStatus.includes('OUTSIDE') || photo.gpsStatus.includes('Unavailable'));
+                        const dupBad = photo.duplicateStatus && photo.duplicateStatus.includes('DUPLICATE');
+                        const exifBad = photo.exifStatus && photo.exifStatus.includes('Stripped');
+                        return (
+                            <div key={photo.id} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px', background: '#0d2233', borderRadius: '6px', border: '1px solid #1a3a52' }}>
+                                {/* Placeholder image box */}
+                                <div style={{ width: '72px', height: '54px', background: '#112a3e', borderRadius: '4px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#4a6478', border: '1px solid #1e3d57' }}>
+                                    IMG
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#c8d8e4' }}>{photo.stage}</span>
+                                        <span style={{ fontSize: '10px', color: '#7b8d9a' }}>{date(photo.date)}</span>
+                                        <span style={{ fontSize: '10px', color: '#5a7a8a' }}>by {photo.uploader}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                        <PhotoBadge label="GPS" value={photo.gpsStatus} ok={!gpsBad}/>
+                                        <PhotoBadge label="EXIF" value={photo.exifStatus} ok={!exifBad}/>
+                                        <PhotoBadge label="Duplicate" value={photo.duplicateStatus} ok={!dupBad}/>
+                                    </div>
+                                    {(gpsBad || dupBad || exifBad) && (
+                                        <div style={{ marginTop: '6px', fontSize: '10px', color: '#c06040', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <AlertTriangle size={10}/>
+                                            Visual anomaly detected — manual field verification recommended
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
           </section>
 
           <section className="surface-card">

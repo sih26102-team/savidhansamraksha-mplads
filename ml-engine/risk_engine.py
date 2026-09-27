@@ -269,6 +269,107 @@ class IsolationForestAnomalyDetector:
         label = "OUTLIER" if norm_score > 75.0 else "INLIER"
         return norm_score, label
 
+    def explain_project(self, project_data: Dict[str, Any]) -> List[str]:
+        """
+        Produce human-readable per-feature explanations for why the
+        Isolation Forest flagged this project.
+
+        Compares each of the 5 isolation features against the mean and
+        standard deviation of the synthetic training baseline, then
+        returns only the features that are statistically extreme
+        (> 1.5 standard deviations from the baseline mean).
+
+        Returns a list of plain-English explanation strings.
+        """
+        if not self.is_fitted or self.model is None:
+            return []
+
+        try:
+            import numpy as np
+
+            # Recompute baseline stats from the training data
+            # The training data lives inside the fitted model's estimators
+            # We use the synthetic baseline directly for stat comparison
+            baseline = _build_synthetic_baseline()
+            arr = np.array(baseline)  # shape: (40, 5)
+
+            feature_names = [
+                "sanctioned_amount",
+                "expenditure_incurred",
+                "physical_progress",
+                "time_elapsed_ratio",
+                "payment_velocity_delta",
+            ]
+            friendly_names = [
+                "Sanctioned amount",
+                "Total expenditure",
+                "Physical progress",
+                "Time elapsed ratio",
+                "Payment velocity delta",
+            ]
+
+            means = arr.mean(axis=0)
+            stds = arr.std(axis=0) + 1e-9  # avoid division by zero
+
+            features = extract_isolation_features(project_data)
+            explanations: List[str] = []
+
+            for i, (feat_val, mean, std) in enumerate(zip(features, means, stds)):
+                z = (feat_val - mean) / std
+                abs_z = abs(z)
+                if abs_z < 1.5:
+                    continue  # within normal range — skip
+
+                direction = "above" if z > 0 else "below"
+                severity = "extremely" if abs_z > 3.0 else ("significantly" if abs_z > 2.0 else "notably")
+
+                if feature_names[i] == "sanctioned_amount":
+                    explanations.append(
+                        f"Sanctioned amount is {severity} {direction} peer baseline "
+                        f"(project scale is an outlier — {round(abs_z, 1)}σ from norm)."
+                    )
+                elif feature_names[i] == "expenditure_incurred":
+                    explanations.append(
+                        f"Total expenditure is {severity} {direction} peer-group average "
+                        f"({round(abs_z, 1)}σ deviation). "
+                        f"{'Disbursement is unusually high for this project size.' if z > 0 else 'Spending is unusually low relative to project scale.'}"
+                    )
+                elif feature_names[i] == "physical_progress":
+                    explanations.append(
+                        f"Physical progress reported ({round(features[i]*100, 1)}%) is "
+                        f"{severity} {direction} what peer projects show at this stage "
+                        f"({round(abs_z, 1)}σ deviation)."
+                    )
+                elif feature_names[i] == "time_elapsed_ratio":
+                    explanations.append(
+                        f"Time elapsed ({round(features[i]*100, 1)}% of planned duration) is "
+                        f"{severity} {direction} the peer group norm "
+                        f"({'significant overrun' if z > 0 else 'ahead of schedule — unusual'}, {round(abs_z, 1)}σ)."
+                    )
+                elif feature_names[i] == "payment_velocity_delta":
+                    if z > 0:
+                        explanations.append(
+                            f"Payment velocity delta is {severity} positive ({round(features[i], 3)}): "
+                            f"funds are flowing {round(abs_z, 1)}σ faster than physical progress justifies — "
+                            f"classic ghost-work financial signature."
+                        )
+                    else:
+                        explanations.append(
+                            f"Payment velocity delta is {severity} negative ({round(features[i], 3)}): "
+                            f"physical progress is {round(abs_z, 1)}σ ahead of disbursement — "
+                            f"contractor invoicing appears unusually delayed."
+                        )
+
+            return explanations if explanations else [
+                "Multi-dimensional statistical outlier detected. No single feature was "
+                "extreme enough alone, but the combined pattern across expenditure, "
+                "progress, and timeline is statistically rare."
+            ]
+
+        except Exception as exc:
+            print(f"[IsolationForest] explain_project error: {exc}")
+            return ["Statistical outlier detected across combined project metrics."]
+
 
 # ---------------------------------------------------------------------------
 # Module-level singleton detector — trained once on import (warm-up)
@@ -482,35 +583,42 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
     findings = generate_reasoning(features, project, risk_score)
 
     # UNEXPLAINED_OUTLIER_ANOMALY:
-    # Fired whenever the Isolation Forest flags a statistically extreme outlier
-    # (score > 75), whether or not individual heuristic rules also fired.
-    # This surfaces multi-dimensional behavioral patterns that heuristic rules
-    # might only partially explain (e.g., a project that is both overdue AND
-    # has an unusual sanction scale relative to the peer baseline).
-    # The evidence text notes whether heuristics independently caught anything.
+    # Fired whenever IF score > 75. Calls explain_project() to attach specific
+    # per-feature deviation evidence — so this is never a black-box verdict.
     heuristics_fired = any(
         f["severity"] in ("HIGH", "MODERATE") for f in findings
     )
     if if_score > 75.0:
+        # Get specific per-feature explanations (z-score deviations from baseline)
+        feature_explanations = _detector.explain_project(project)
         heuristic_note = (
-            "Heuristic rules also independently flagged anomalies in this project."
+            "Heuristic domain rules also independently flagged this project."
             if heuristics_fired
-            else "No single heuristic rule was sufficient to explain this pattern alone."
+            else "No single domain rule threshold was breached — this is a multi-dimensional pattern."
+        )
+        # Build a numbered evidence string so each reason is legible
+        numbered = " ".join(
+            f"[{i+1}] {exp}"
+            for i, exp in enumerate(feature_explanations)
         )
         findings.append({
             "severity": "HIGH",
-            "title": "Unexplained Statistical Outlier",
+            "title": "Multi-Dimensional Statistical Outlier",
             "explanation": (
-                "Project behavior significantly departs from statistical peer group norms "
-                "across combined expenditure, timeline, and physical velocity dimensions."
+                "The Isolation Forest model detected that this project's combined "
+                "expenditure, physical progress, and timeline behaviour is statistically "
+                "rare among peer MPLADS projects — even if no single rule was individually "
+                "breached. This is not a black-box verdict: specific driving factors are "
+                "listed in the evidence below."
             ),
             "evidence": (
-                f"Isolation Forest unsupervised model assigned anomaly score "
-                f"{if_score}/100 against {_detector.n_samples} peer-baseline samples. "
-                f"{heuristic_note}"
+                f"Anomaly score: {if_score}/100 (peer baseline: {_detector.n_samples} projects). "
+                f"{heuristic_note} "
+                f"Driving factors — {numbered}"
             ),
             "module": "UNEXPLAINED_OUTLIER_ANOMALY",
         })
+
 
     # ---- Module scores (backward-compatible keys) -------------------------
     return {
