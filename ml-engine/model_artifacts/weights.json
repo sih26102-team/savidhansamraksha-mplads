@@ -1,9 +1,9 @@
 {
-  "model_version": "2.4.0-production",
+  "model_version": "3.0.0-phase1-isolation-forest",
   "trained_at": "2026-09-27T00:00:00Z",
   "weights": {
-    "isolation_forest_anomaly_weight": 0.40,
-    "heuristic_domain_weight": 0.60,
+    "isolation_forest_anomaly_weight": 0.30,
+    "heuristic_domain_weight": 0.70,
     "divergence_penalty_multiplier": 55.0,
     "cost_overrun_penalty_multiplier": 65.0,
     "time_overrun_penalty_multiplier": 18.0,
@@ -15,7 +15,8 @@
     "moderate_risk_cutoff": 40.0,
     "divergence_critical_threshold": 0.15,
     "cost_overrun_threshold": 1.05,
-    "time_elapsed_critical_ratio": 0.90
+    "time_elapsed_critical_ratio": 0.90,
+    "isolation_forest_outlier_threshold": 75.0
   },
   "escalation_floor": {
     "district_escalation": 75.80,
@@ -23,12 +24,15 @@
     "national_escalation": 88.90
   },
   "feature_indices": [
-    "costRatio",
-    "expenditureRate",
-    "progressRate",
-    "progressExpenditureDivergence",
-    "timeElapsedRatio",
-    "governanceComplianceScore",
-    "evidenceIntegrityScore"
-  ]
+    "sanctioned_amount",
+    "expenditure_incurred",
+    "physical_progress_pct_normalized",
+    "time_elapsed_ratio",
+    "payment_velocity_delta"
+  ],
+  "phase": "1",
+  "detector": "IsolationForest",
+  "contamination": 0.08,
+  "n_estimators": 100,
+  "baseline_peers": 40
 }
