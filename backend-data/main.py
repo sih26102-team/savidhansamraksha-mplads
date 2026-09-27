@@ -53,7 +53,35 @@ def get_db():
     finally:
         conn.close()
 
-# In-memory session store (simple token -> user mapping)
+import base64
+import hmac
+
+# Secret key for signing session tokens — stateless, survives server restarts
+SESSION_SECRET = os.environ.get("SESSION_SECRET", "savidhan-default-secret-key-2024")
+
+def _encode_session(user_data: Dict[str, Any]) -> str:
+    """Encode user data as a signed base64 token (stateless)."""
+    payload = json.dumps(user_data, default=str).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(payload).decode("utf-8")
+    sig = hmac.new(SESSION_SECRET.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()
+    return f"{payload_b64}.{sig}"
+
+def _decode_session(token: str) -> Optional[Dict[str, Any]]:
+    """Decode and verify a signed session token."""
+    try:
+        parts = token.rsplit(".", 1)
+        if len(parts) != 2:
+            return None
+        payload_b64, sig = parts
+        expected_sig = hmac.new(SESSION_SECRET.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        payload = base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8")
+        return json.loads(payload)
+    except Exception:
+        return None
+
+# Legacy in-memory fallback (for tokens issued before this change)
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 
 def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
@@ -63,7 +91,14 @@ def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             cookie_val = auth_header.split(" ")[1]
-    if cookie_val and cookie_val in SESSIONS:
+    if not cookie_val:
+        return None
+    # Try stateless token first
+    user = _decode_session(cookie_val)
+    if user:
+        return user
+    # Fallback: legacy in-memory session
+    if cookie_val in SESSIONS:
         return SESSIONS[cookie_val]
     return None
 
@@ -284,19 +319,19 @@ def login(body: LoginRequest, response: Response):
         "readOnly": bool(user["read_only"]),
     }
 
-    session_id = f"sess_{user['id']}_{hashlib.md5(os.urandom(16)).hexdigest()}"
-    SESSIONS[session_id] = session_user
+    # Issue a stateless signed token — survives server restarts / Render redeploys
+    session_token = _encode_session(session_user)
 
     response.set_cookie(
         key="savidhan_session",
-        value=session_id,
+        value=session_token,
         httponly=False,
         max_age=86400 * 7,
         path="/",
         samesite="none",
         secure=True
     )
-    return {"user": session_user, "token": session_id}
+    return {"user": session_user, "token": session_token}
 
 @app.get("/api/auth/me")
 def get_me(request: Request):
