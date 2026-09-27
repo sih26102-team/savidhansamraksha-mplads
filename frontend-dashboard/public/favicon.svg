@@ -1,3 +1,47 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <!-- SavidhanSamraksha Official Governance Emblem Favicon -->
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#142c3e"/>
+      <stop offset="100%" stop-color="#0a1823"/>
+    </linearGradient>
+    <linearGradient id="gold-grad" x1="40" y1="35" x2="140" y2="145" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f5cb74"/>
+      <stop offset="50%" stop-color="#d89d44"/>
+      <stop offset="100%" stop-color="#b67a26"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Deep navy rounded container -->
+  <rect width="180" height="180" rx="40" fill="url(#bg-grad)"/>
+  <rect x="2" y="2" width="176" height="176" rx="38" stroke="#254860" stroke-width="2"/>
+
+  <!-- Outer gold seal ring -->
+  <circle cx="90" cy="90" r="68" stroke="url(#gold-grad)" stroke-width="4.5"/>
+  <!-- Inner fine concentric ring -->
+  <circle cx="90" cy="90" r="60" stroke="#d89d44" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+  <!-- Center Landmark / Parliament Emblem -->
+  <!-- Pediment (Triangular roof) -->
+  <path d="M90 44L132 64H48L90 44Z" fill="url(#gold-grad)"/>
+  <circle cx="90" cy="56" r="3" fill="#ffffff" fill-opacity="0.9"/>
+
+  <!-- Entablature horizontal bar -->
+  <rect x="46" y="66" width="88" height="6" rx="2" fill="url(#gold-grad)"/>
+
+  <!-- 4 Classical Pillars / Columns -->
+  <rect x="53" y="75" width="11" height="42" rx="2" fill="url(#gold-grad)"/>
+  <rect x="73" y="75" width="11" height="42" rx="2" fill="url(#gold-grad)"/>
+  <rect x="96" y="75" width="11" height="42" rx="2" fill="url(#gold-grad)"/>
+  <rect x="116" y="75" width="11" height="42" rx="2" fill="url(#gold-grad)"/>
+
+  <!-- Column capitals & bases -->
+  <rect x="50" y="74" width="17" height="3" rx="1" fill="#f5cb74"/>
+  <rect x="70" y="74" width="17" height="3" rx="1" fill="#f5cb74"/>
+  <rect x="93" y="74" width="17" height="3" rx="1" fill="#f5cb74"/>
+  <rect x="113" y="74" width="17" height="3" rx="1" fill="#f5cb74"/>
+
+  <!-- Base plinth (Stepped Foundation) -->
+  <rect x="48" y="119" width="84" height="6" rx="2" fill="url(#gold-grad)"/>
+  <rect x="42" y="127" width="96" height="8" rx="3" fill="url(#gold-grad)"/>
 </svg>

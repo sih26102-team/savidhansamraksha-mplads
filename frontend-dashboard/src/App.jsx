@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Link, Route, Router as WouterRouter, Switch, useLocation, useParams } from 'wouter';
 import { AlertOctagon, AlertTriangle, ArrowUpRight, BarChart3, Bell, Building2, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Copy, FileSearch, Gavel, Home, IndianRupee, Landmark, LogOut, MapPin, Menu, Network, PanelLeftClose, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, X, } from 'lucide-react';
 import { AuthUserRole, ListProjectsWorkflowStatus, useCreateProjectAction, useGetCurrentUser, useGetDashboardSummary, useGetDemoAccounts, useGetProject, useListConstituencies, useListDistricts, useListEscalatedProjects, useListProjectAudit, useListProjects, useListRecentAudit, useListStates, useLogin, useLogout, getGetDashboardSummaryQueryKey, getGetProjectQueryKey, getListEscalatedProjectsQueryKey, getListProjectAuditQueryKey, getListProjectsQueryKey, getListRecentAuditQueryKey, } from '@/lib/api';
+import { ALL_INDIAN_STATES, getDistrictsForState, getConstituenciesForState } from '@/lib/india-data';
 import { ErrorBoundary } from '@/components/error-boundary';
 import NotFound from '@/pages/not-found';
 import './index.css';
@@ -293,7 +294,11 @@ function AuthPage() {
     const login = useLogin();
     const { data: demosData, isLoading: demosLoading } = useGetDemoAccounts();
     const demos = Array.isArray(demosData) && demosData.length > 0 ? demosData : FALLBACK_DEMOS;
-    const { data: states, isLoading: statesLoading } = useListStates();
+    const { data: statesData, isLoading: statesLoading } = useListStates();
+    const states = useMemo(() => {
+        if (Array.isArray(statesData) && statesData.length > 0) return statesData;
+        return ALL_INDIAN_STATES;
+    }, [statesData]);
     const [authority, setAuthority] = useState('MINISTRY');
     const [mpCategory, setMpCategory] = useState('');
     const [stateCode, setStateCode] = useState('');
@@ -301,8 +306,26 @@ function AuthPage() {
     const [constituencyId, setConstituencyId] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const districts = useListDistricts(stateCode, { query: { queryKey: ['/api/administration/states', stateCode, 'districts'], enabled: Boolean(stateCode) } });
-    const constituencies = useListConstituencies(stateCode, { query: { queryKey: ['/api/administration/states', stateCode, 'constituencies'], enabled: Boolean(stateCode) } });
+    const districtsQuery = useListDistricts(stateCode, {
+        query: { queryKey: ['/api/administration/states', stateCode, 'districts'], enabled: Boolean(stateCode) },
+    });
+    const availableDistricts = useMemo(() => {
+        if (!stateCode) return [];
+        if (Array.isArray(districtsQuery.data) && districtsQuery.data.length > 0) {
+            return districtsQuery.data;
+        }
+        return getDistrictsForState(stateCode);
+    }, [stateCode, districtsQuery.data]);
+    const constituenciesQuery = useListConstituencies(stateCode, {
+        query: { queryKey: ['/api/administration/states', stateCode, 'constituencies'], enabled: Boolean(stateCode) },
+    });
+    const availableConstituencies = useMemo(() => {
+        if (!stateCode) return [];
+        if (Array.isArray(constituenciesQuery.data) && constituenciesQuery.data.length > 0) {
+            return constituenciesQuery.data;
+        }
+        return getConstituenciesForState(stateCode);
+    }, [stateCode, constituenciesQuery.data]);
     const [, navigate] = useLocation();
     const handleRoleChange = (role) => {
         setAuthority(role);
@@ -464,42 +487,85 @@ function AuthPage() {
             {(authority === 'STATE_NODAL' || authority === 'DISTRICT_AUTHORITY' || (authority === 'MP' && (mpCategory === 'LOK_SABHA' || mpCategory === 'RAJYA_SABHA'))) && (<div className="field-row">
                 <label>
                   State / Union Territory
-                  <select value={stateCode} onChange={(e) => {
-                setStateCode(e.target.value);
-                setDistrictId('');
-                setConstituencyId('');
-            }} required data-testid="select-state">
-                    <option value="">Select state</option>
-                    {Array.isArray(states) ? states.map((state) => (<option key={state.code} value={state.code}>{state.name}</option>)) : null}
+                  <select
+                    value={stateCode}
+                    onChange={(e) => {
+                      setStateCode(e.target.value);
+                      setDistrictId('');
+                      setConstituencyId('');
+                    }}
+                    required
+                    data-testid="select-state"
+                  >
+                    <option value="">Select state / UT ({states.length} available)</option>
+                    {states.map((state) => (
+                      <option key={state.code} value={state.code}>
+                        {state.name}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
                 {/* District Dropdown for District Nodal or Rajya Sabha MP */}
-                {(authority === 'DISTRICT_AUTHORITY' || (authority === 'MP' && mpCategory === 'RAJYA_SABHA')) && (<label>
+                {(authority === 'DISTRICT_AUTHORITY' || (authority === 'MP' && mpCategory === 'RAJYA_SABHA')) && (
+                  <label>
                     District
-                    <select value={districtId} onChange={(e) => setDistrictId(e.target.value)} required data-testid="select-district">
-                      <option value="">Select district</option>
-                      {districtId && !districts.data?.some((d) => d.id === districtId) && (<option value={districtId}>{districtId === 'AP-01' ? 'Anakapalli' : districtId}</option>)}
-                      {districts.data?.map((district) => (<option key={district.id} value={district.id}>{district.name}</option>))}
+                    <select
+                      value={districtId}
+                      onChange={(e) => setDistrictId(e.target.value)}
+                      required
+                      disabled={!stateCode}
+                      data-testid="select-district"
+                    >
+                      <option value="">
+                        {stateCode
+                          ? availableDistricts.length > 0
+                            ? `Select district (${availableDistricts.length} available)`
+                            : 'No districts found for state'
+                          : 'Select state first'}
+                      </option>
+                      {availableDistricts.map((district) => (
+                        <option key={district.id} value={district.id}>
+                          {district.name}
+                        </option>
+                      ))}
                     </select>
-                  </label>)}
+                  </label>
+                )}
 
                 {/* Constituency Dropdown for Lok Sabha MP */}
-                {authority === 'MP' && mpCategory === 'LOK_SABHA' && (<label>
+                {authority === 'MP' && mpCategory === 'LOK_SABHA' && (
+                  <label>
                     Parliamentary constituency
-                    <select value={constituencyId} onChange={(e) => setConstituencyId(e.target.value)} required data-testid="select-constituency">
-                      <option value="">Select constituency</option>
-                      {constituencyId && !constituencies.data?.some((c) => c.id === constituencyId) && (<option value={constituencyId}>{constituencyId === 'AP-LS-01' ? 'Andhra Pradesh Parliamentary Constituency 1' : constituencyId}</option>)}
-                      {constituencies.data?.map((item) => (<option key={item.id} value={item.id}>{item.name}</option>))}
+                    <select
+                      value={constituencyId}
+                      onChange={(e) => setConstituencyId(e.target.value)}
+                      required
+                      disabled={!stateCode}
+                      data-testid="select-constituency"
+                    >
+                      <option value="">
+                        {stateCode
+                          ? availableConstituencies.length > 0
+                            ? `Select constituency (${availableConstituencies.length} available)`
+                            : 'No constituencies found for state'
+                          : 'Select state first'}
+                      </option>
+                      {availableConstituencies.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
                     </select>
-                  </label>)}
+                  </label>
+                )}
               </div>)}
 
             {login.isError && (<div className="form-error" data-testid="status-login-error">
                 <AlertTriangle size={14}/>The access key or authority scope could not be verified. Try the demo access below.
               </div>)}
 
-            <button className="button button-primary button-large w-full" disabled={login.isPending || statesLoading || (authority === 'MP' && !mpCategory)} type="submit" data-testid="button-enter-workspace">
+            <button className="button button-primary button-large w-full" disabled={login.isPending || (authority === 'MP' && !mpCategory)} type="submit" data-testid="button-enter-workspace">
               {login.isPending ? 'Verifying authority…' : 'Enter monitoring room'}
               <ChevronRight size={16}/>
             </button>

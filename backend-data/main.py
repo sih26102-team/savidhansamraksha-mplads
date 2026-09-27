@@ -754,26 +754,63 @@ def get_project_audit(work_id: str, request: Request):
 # 5. Administration Endpoints
 # ==============================================================================
 
+try:
+    from india_admin_data import ALL_STATES, ALL_DISTRICTS, ALL_CONSTITUENCIES
+except ImportError:
+    ALL_STATES = []
+    ALL_DISTRICTS = []
+    ALL_CONSTITUENCIES = []
+
 @app.get("/api/administration/states")
 def get_states():
-    conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
-    cur = conn.cursor()
-    cur.execute("SELECT code, name FROM states ORDER BY name ASC")
-    rows = cur.fetchall()
-    conn.close()
-    return [{"code": r["code"], "name": r["name"]} for r in rows]
+    try:
+        conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        cur.execute("SELECT code, name FROM states ORDER BY name ASC")
+        rows = cur.fetchall()
+        conn.close()
+        if rows:
+            return [{"code": r["code"], "name": r["name"]} for r in rows]
+    except Exception as e:
+        print(f"[Admin] DB states lookup error, using fallback: {e}")
+    return ALL_STATES
 
 @app.get("/api/administration/districts")
 def get_districts(stateCode: Optional[str] = None):
-    conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
-    cur = conn.cursor()
+    try:
+        conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        if stateCode:
+            cur.execute("SELECT id, name, state_code FROM districts WHERE state_code = %s ORDER BY name ASC", [stateCode])
+        else:
+            cur.execute("SELECT id, name, state_code FROM districts ORDER BY name ASC")
+        rows = cur.fetchall()
+        conn.close()
+        if rows:
+            return [{"id": r["id"], "name": r["name"], "stateCode": r["state_code"]} for r in rows]
+    except Exception as e:
+        print(f"[Admin] DB districts lookup error, using fallback: {e}")
     if stateCode:
-        cur.execute("SELECT id, name, state_code FROM districts WHERE state_code = %s ORDER BY name ASC", [stateCode])
-    else:
-        cur.execute("SELECT id, name, state_code FROM districts ORDER BY name ASC")
-    rows = cur.fetchall()
-    conn.close()
-    return [{"id": r["id"], "name": r["name"], "stateCode": r["state_code"]} for r in rows]
+        return [d for d in ALL_DISTRICTS if d["stateCode"] == stateCode]
+    return ALL_DISTRICTS
+
+@app.get("/api/administration/states/{stateCode}/districts")
+def get_state_districts(stateCode: str):
+    return get_districts(stateCode=stateCode)
+
+@app.get("/api/administration/states/{stateCode}/constituencies")
+def get_state_constituencies(stateCode: str):
+    try:
+        conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, state_code FROM constituencies WHERE state_code = %s ORDER BY name ASC", [stateCode])
+        rows = cur.fetchall()
+        conn.close()
+        if rows:
+            return [{"id": r["id"], "name": r["name"], "stateCode": r["state_code"]} for r in rows]
+    except Exception as e:
+        print(f"[Admin] DB constituencies lookup error, using fallback: {e}")
+    return [c for c in ALL_CONSTITUENCIES if c["stateCode"] == stateCode]
 
 # ==============================================================================
 # 6. Direct Runner
