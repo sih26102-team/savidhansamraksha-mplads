@@ -234,9 +234,65 @@ function AppShell({ children, user }) {
       </main>
     </div>);
 }
+const FALLBACK_DEMOS = [
+  {
+    label: "Ministry Administration",
+    username: "kavita.sharma",
+    password: "Demo@123",
+    authority: "MINISTRY",
+    scopeLabel: "National monitoring scope",
+  },
+  {
+    label: "State Nodal Authority",
+    username: "raghavendra.rao",
+    password: "Demo@123",
+    authority: "STATE_NODAL",
+    scopeLabel: "Andhra Pradesh state scope",
+    stateCode: "AP",
+  },
+  {
+    label: "District Nodal Officer",
+    username: "suresh.kumar",
+    password: "Demo@123",
+    authority: "DISTRICT_AUTHORITY",
+    scopeLabel: "Anakapalli, Andhra Pradesh",
+    stateCode: "AP",
+    districtId: "AP-01",
+  },
+  {
+    label: "Lok Sabha MP",
+    username: "meenakshi.iyer",
+    password: "Demo@123",
+    authority: "MP",
+    mpCategory: "LOK_SABHA",
+    scopeLabel: "AP · Parliamentary Constituency 1",
+    stateCode: "AP",
+    constituencyId: "AP-LS-01",
+  },
+  {
+    label: "Rajya Sabha MP",
+    username: "vikram.varma",
+    password: "Demo@123",
+    authority: "MP",
+    mpCategory: "RAJYA_SABHA",
+    scopeLabel: "AP · Anakapalli District (Rajya Sabha)",
+    stateCode: "AP",
+    districtId: "AP-01",
+  },
+  {
+    label: "Nominated MP",
+    username: "sneha.deshmukh",
+    password: "Demo@123",
+    authority: "MP",
+    mpCategory: "NOMINATED",
+    scopeLabel: "National oversight (Nominated MP)",
+  },
+];
+
 function AuthPage() {
     const login = useLogin();
-    const { data: demos, isLoading: demosLoading } = useGetDemoAccounts();
+    const { data: demosData, isLoading: demosLoading } = useGetDemoAccounts();
+    const demos = Array.isArray(demosData) && demosData.length > 0 ? demosData : FALLBACK_DEMOS;
     const { data: states, isLoading: statesLoading } = useListStates();
     const [authority, setAuthority] = useState('MINISTRY');
     const [mpCategory, setMpCategory] = useState('');

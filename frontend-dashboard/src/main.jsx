@@ -5,7 +5,7 @@ import { setBaseUrl } from '@/lib/api';
 import './index.css';
 
 if (import.meta.env.VITE_API_URL) {
-  setBaseUrl(import.meta.env.VITE_API_URL);
+  setBaseUrl(import.meta.env.VITE_API_URL.replace(/\/+$/, ''));
 }
 createRoot(document.getElementById('root'), {
     // Keeps caught errors off reportError(), which would raise the dev overlay.
