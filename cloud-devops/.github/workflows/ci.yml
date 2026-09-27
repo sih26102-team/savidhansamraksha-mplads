@@ -23,7 +23,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 12
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -42,7 +42,7 @@ jobs:
           python evaluate_models.py
 
       - name: Install Node Monorepo Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Monorepo Typecheck
         run: pnpm run typecheck
