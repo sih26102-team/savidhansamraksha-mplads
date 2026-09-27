@@ -11,7 +11,7 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, Cookie
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, Cookie, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
@@ -28,6 +28,21 @@ from workflow_state_machine import (
 )
 from audit_logger import create_audit_log_entry
 from escalation_router import route_escalation
+
+# Phase 2: Visual Intelligence Engine (graceful import — won't crash if libs absent)
+try:
+    from visual_engine import analyse_photo_upload
+    _VISUAL_ENGINE_AVAILABLE = True
+except ImportError:
+    _VISUAL_ENGINE_AVAILABLE = False
+    def analyse_photo_upload(*args, **kwargs):
+        return {
+            "photo_hash": None, "sha256": "", "upload_channel": "STRIPPED_OR_EXTERNAL",
+            "exif": {"exif_present": False, "latitude": None, "longitude": None},
+            "findings": [], "gps_status": "GPS Unavailable",
+            "exif_status": "Engine Unavailable", "duplicate_status": "Unique Image Hash",
+        }
+
 
 DB_URL = os.environ.get("DATABASE_URL", "postgresql://postgres@127.0.0.1:5433/savidhan")
 
@@ -872,6 +887,198 @@ def get_project_detail(work_id: str, request: Request):
             for pay in payments
         ],
     }
+
+# ==============================================================================
+# Phase 2: Photo Upload + Visual Intelligence Engine
+# ==============================================================================
+
+@app.post("/api/projects/{work_id}/photos")
+async def upload_project_photo(
+    work_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    stage: str = Query(default="PROGRESS", description="Milestone stage label"),
+):
+    """
+    Upload a progress photograph for a project.
+
+    Steps performed:
+    1. Read image bytes
+    2. analyse_photo_upload() -> pHash, EXIF GPS, duplicate check, geofence
+    3. Persist result to progress_updates (photo_hash, upload_channel, exif coords)
+    4. Persist visual findings to risk_flags
+    5. Return analysis summary (no schema changes to existing routes)
+    """
+    user = require_user(request)
+    image_bytes = await file.read()
+
+    conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+    cur = conn.cursor()
+
+    # Fetch project for constituency coordinates
+    cur.execute("SELECT * FROM projects WHERE work_id = %s", [work_id])
+    project = cur.fetchone()
+    if not project:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Pull all stored hashes for duplicate detection
+    cur.execute("SELECT work_id, photo_hash FROM progress_updates WHERE photo_hash IS NOT NULL")
+    stored_hashes = [dict(r) for r in cur.fetchall()]
+
+    # Constituency centroid (approximate from seed data — fallback to None)
+    try:
+        cur.execute(
+            "SELECT center_lat, center_lon FROM constituencies WHERE id = %s",
+            [project.get("constituency_id")]
+        )
+        con_row = cur.fetchone()
+        const_lat = float(con_row["center_lat"]) if con_row and con_row.get("center_lat") else None
+        const_lon = float(con_row["center_lon"]) if con_row and con_row.get("center_lon") else None
+    except Exception:
+        const_lat, const_lon = None, None
+
+    # ---- Run Phase 2 analysis pipeline ----
+    analysis = analyse_photo_upload(
+        image_bytes=image_bytes,
+        work_id=work_id,
+        all_stored_hashes=stored_hashes,
+        constituency_lat=const_lat,
+        constituency_lon=const_lon,
+    )
+
+    exif = analysis.get("exif", {})
+
+    # ---- Persist to progress_updates ----
+    try:
+        cur.execute("SELECT COALESCE(MAX(id::bigint), 0) + 1 AS nid FROM progress_updates")
+        next_pu_id = cur.fetchone()["nid"]
+
+        cur.execute("""
+            INSERT INTO progress_updates (
+                id, work_id, stage, update_date, progress, note,
+                photo_hash, upload_channel,
+                exif_lat, exif_lon, exif_timestamp
+            )
+            VALUES (%s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT DO NOTHING
+        """, [
+            next_pu_id, work_id, stage,
+            float(project.get("physical_progress_pct") or 0),
+            f"Photo uploaded via API — stage: {stage}",
+            analysis.get("photo_hash"),
+            analysis.get("upload_channel", "DIRECT_UPLOAD"),
+            exif.get("latitude"),
+            exif.get("longitude"),
+            exif.get("gps_timestamp"),
+        ])
+
+        try:
+            cur.execute(
+                "SELECT setval(pg_get_serial_sequence('progress_updates','id'), %s, true)",
+                [next_pu_id]
+            )
+        except Exception:
+            pass
+
+    except Exception as pu_err:
+        print(f"[PhotoUpload] progress_updates insert error (non-fatal): {pu_err}")
+        conn.rollback()
+
+    # ---- Persist visual findings to risk_flags ----
+    for finding in analysis.get("findings", []):
+        try:
+            cur.execute("SELECT COALESCE(MAX(id::bigint), 0) + 1 AS nid FROM risk_flags")
+            next_rf_id = cur.fetchone()["nid"]
+
+            cur.execute("""
+                INSERT INTO risk_flags (
+                    id, work_id, flag_type, severity, title, explanation, evidence, module, created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT DO NOTHING
+            """, [
+                next_rf_id, work_id,
+                finding.get("module", "VISUAL_FLAG"),
+                finding.get("severity", "MODERATE"),
+                finding.get("title", ""),
+                finding.get("explanation", ""),
+                finding.get("evidence", ""),
+                finding.get("module", "VISUAL_SPATIAL"),
+            ])
+
+            try:
+                cur.execute(
+                    "SELECT setval(pg_get_serial_sequence('risk_flags','id'), %s, true)",
+                    [next_rf_id]
+                )
+            except Exception:
+                pass
+
+        except Exception as rf_err:
+            print(f"[PhotoUpload] risk_flags insert error (non-fatal): {rf_err}")
+            conn.rollback()
+
+    # ---- Persist photo thumbnail record to assets ----
+    try:
+        cur.execute("SELECT COALESCE(MAX(id::bigint), 0) + 1 AS nid FROM assets")
+        next_asset_id = cur.fetchone()["nid"]
+
+        cur.execute("""
+            INSERT INTO assets (
+                id, work_id, stage, photo_date, uploader,
+                gps_status, exif_status, duplicate_status, image_url
+            )
+            VALUES (%s, %s, %s, NOW(), %s, %s, %s, %s, %s)
+            ON CONFLICT DO NOTHING
+        """, [
+            next_asset_id, work_id, stage,
+            str(user.get("username") or user.get("id") or "Field Officer"),
+            analysis.get("gps_status", "GPS Unavailable"),
+            analysis.get("exif_status", "Metadata Stripped / Missing"),
+            analysis.get("duplicate_status", "Unique Image Hash"),
+            f"/photos/{work_id}/{analysis.get('sha256', 'unknown')[:16]}.jpg",
+        ])
+
+        try:
+            cur.execute(
+                "SELECT setval(pg_get_serial_sequence('assets','id'), %s, true)",
+                [next_asset_id]
+            )
+        except Exception:
+            pass
+
+    except Exception as asset_err:
+        print(f"[PhotoUpload] assets insert error (non-fatal): {asset_err}")
+        conn.rollback()
+
+    conn.commit()
+    conn.close()
+
+    # Determine aggregate visual risk level from findings
+    has_high = any(f.get("severity") == "HIGH" for f in analysis.get("findings", []))
+    visual_risk = "HIGH" if has_high else ("MODERATE" if analysis.get("findings") else "LOW")
+
+    return {
+        "success": True,
+        "workId": work_id,
+        "stage": stage,
+        "photoHash": analysis.get("photo_hash"),
+        "sha256": analysis.get("sha256"),
+        "uploadChannel": analysis.get("upload_channel"),
+        "exifPresent": exif.get("exif_present", False),
+        "gpsCoordinates": (
+            {"lat": exif["latitude"], "lon": exif["longitude"]}
+            if exif.get("latitude") is not None else None
+        ),
+        "gpsStatus": analysis.get("gps_status"),
+        "exifStatus": analysis.get("exif_status"),
+        "duplicateStatus": analysis.get("duplicate_status"),
+        "visualRiskLevel": visual_risk,
+        "findings": analysis.get("findings", []),
+        "visualEngineAvailable": _VISUAL_ENGINE_AVAILABLE,
+    }
+
 
 class ProjectActionRequest(BaseModel):
     action: str
