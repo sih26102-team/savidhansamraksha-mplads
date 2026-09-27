@@ -1,0 +1,20 @@
+# ==============================================================================
+# GitHub Linguist Language Configuration
+# Enforces exact language breakdown: JavaScript (Frontend) + Python (Backend)
+# ==============================================================================
+
+# Force JavaScript detection
+*.jsx linguist-language=JavaScript
+*.js linguist-language=JavaScript
+*.mjs linguist-language=JavaScript
+
+# Force Python detection
+*.py linguist-language=Python
+
+# Mark non-code / config / documentation files
+*.json linguist-documentation
+*.md linguist-documentation
+*.yml linguist-documentation
+*.yaml linguist-documentation
+*.toml linguist-documentation
+pnpm-lock.yaml linguist-vendored
