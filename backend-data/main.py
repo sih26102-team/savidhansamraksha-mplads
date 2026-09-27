@@ -46,7 +46,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_db():
+@app.on_event("startup")
+def fix_sequences():
+    """Reset PostgreSQL sequences to prevent duplicate-key errors after bulk imports."""
+    try:
+        conn = psycopg2.connect(DB_URL)
+        cur = conn.cursor()
+        tables_seqs = [
+            ("flag_actions", "flag_actions_id_seq", "id"),
+            ("project_escalations", "project_escalations_id_seq", "id"),
+        ]
+        for table, seq, col in tables_seqs:
+            try:
+                cur.execute(f"SELECT setval('{seq}', COALESCE((SELECT MAX({col}) FROM {table}), 1))")
+                print(f"[Startup] Reset sequence {seq}")
+            except Exception as e:
+                print(f"[Startup] Skipping sequence {seq}: {e}")
+                conn.rollback()
+        conn.commit()
+        conn.close()
+        print("[Startup] Sequence fix complete")
+    except Exception as e:
+        print(f"[Startup] Sequence fix failed (non-fatal): {e}")
+
+
     conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
     try:
         yield conn
