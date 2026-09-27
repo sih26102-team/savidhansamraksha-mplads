@@ -4,9 +4,15 @@ import { Link, Route, Router as WouterRouter, Switch, useLocation, useParams } f
 import { AlertOctagon, AlertTriangle, ArrowUpRight, BarChart3, Bell, Building2, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Copy, FileSearch, Gavel, Home, IndianRupee, Landmark, LogOut, MapPin, Menu, Network, PanelLeftClose, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, X, } from 'lucide-react';
 import { AuthUserRole, ListProjectsWorkflowStatus, useCreateProjectAction, useGetCurrentUser, useGetDashboardSummary, useGetDemoAccounts, useGetProject, useListConstituencies, useListDistricts, useListEscalatedProjects, useListProjectAudit, useListProjects, useListRecentAudit, useListStates, useLogin, useLogout, getGetDashboardSummaryQueryKey, getGetProjectQueryKey, getListEscalatedProjectsQueryKey, getListProjectAuditQueryKey, getListProjectsQueryKey, getListRecentAuditQueryKey, } from '@/lib/api';
 import { ALL_INDIAN_STATES, getDistrictsForState, getConstituenciesForState } from '@/lib/india-data';
+import { setAuthTokenGetter } from '@/lib/api/custom-fetch';
 import { ErrorBoundary } from '@/components/error-boundary';
 import NotFound from '@/pages/not-found';
 import './index.css';
+
+if (typeof window !== 'undefined') {
+    setAuthTokenGetter(() => localStorage.getItem("savidhan_session_token"));
+}
+
 const queryClient = new QueryClient();
 const roleLabels = {
     MINISTRY: 'Ministry Administration',
@@ -208,7 +214,13 @@ function UserProfileMenu({ user, onLogout }) {
 function AppShell({ children, user }) {
     const logout = useLogout();
     const [, navigate] = useLocation();
-    const onLogout = () => logout.mutate(undefined, { onSuccess: () => { queryClient.clear(); navigate('/'); } });
+    const onLogout = () => logout.mutate(undefined, {
+        onSuccess: () => {
+            localStorage.removeItem("savidhan_session_token");
+            queryClient.clear();
+            navigate('/');
+        }
+    });
     return (<div className="app-shell">
       <Sidebar user={user} onLogout={onLogout}/>
       <main className="main-area">
@@ -378,7 +390,15 @@ function AuthPage() {
                 constituencyId: constituencyId || null,
                 parliamentaryCategory: authority === 'MP' ? mpCategory : null,
             },
-        }, { onSuccess: () => navigate('/dashboard') });
+        }, {
+            onSuccess: (res) => {
+                if (res?.token) {
+                    localStorage.setItem("savidhan_session_token", res.token);
+                }
+                queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                navigate('/dashboard');
+            }
+        });
     };
     return (<div className="auth-page">
       <div className="auth-rail">

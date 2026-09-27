@@ -9,7 +9,7 @@ import json
 import hashlib
 from datetime import datetime, date
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, Cookie
 from fastapi.middleware.cors import CORSMiddleware
@@ -95,8 +95,12 @@ class LoginRequest(BaseModel):
     password: str
     authority: str
     stateCode: Optional[str] = None
-    districtId: Optional[int] = None
-    constituencyId: Optional[int] = None
+    districtId: Optional[Union[str, int]] = None
+    constituencyId: Optional[Union[str, int]] = None
+    parliamentaryCategory: Optional[str] = None
+
+    class Config:
+        extra = "ignore"
 
 @app.get("/api/auth/demo")
 def get_demo_accounts():
@@ -155,18 +159,114 @@ def get_demo_accounts():
         },
     ]
 
+DEMO_USERS_MAP = {
+    "kavita.sharma": {
+        "id": "1",
+        "fullName": "Kavita Sharma",
+        "username": "kavita.sharma",
+        "designation": "Director (MPLADS Central Administration)",
+        "role": "MINISTRY",
+        "stateCode": None,
+        "districtId": None,
+        "constituencyId": None,
+        "scopeLabel": "National monitoring scope",
+        "readOnly": False,
+    },
+    "raghavendra.rao": {
+        "id": "2",
+        "fullName": "Raghavendra Rao",
+        "username": "raghavendra.rao",
+        "designation": "State Nodal Authority Officer",
+        "role": "STATE_NODAL",
+        "stateCode": "AP",
+        "districtId": None,
+        "constituencyId": None,
+        "scopeLabel": "Andhra Pradesh state scope",
+        "readOnly": False,
+    },
+    "suresh.kumar": {
+        "id": "3",
+        "fullName": "Suresh Kumar",
+        "username": "suresh.kumar",
+        "designation": "District Nodal Officer",
+        "role": "DISTRICT_AUTHORITY",
+        "stateCode": "AP",
+        "districtId": "AP-01",
+        "constituencyId": None,
+        "scopeLabel": "Anakapalli, Andhra Pradesh",
+        "readOnly": False,
+    },
+    "meenakshi.iyer": {
+        "id": "4",
+        "fullName": "Meenakshi Iyer",
+        "username": "meenakshi.iyer",
+        "designation": "Member of Parliament (Lok Sabha)",
+        "role": "MP",
+        "stateCode": "AP",
+        "districtId": None,
+        "constituencyId": "AP-LS-01",
+        "scopeLabel": "AP · Parliamentary Constituency 1",
+        "readOnly": True,
+    },
+    "vikram.varma": {
+        "id": "5",
+        "fullName": "Vikram Varma",
+        "username": "vikram.varma",
+        "designation": "Member of Parliament (Rajya Sabha)",
+        "role": "MP",
+        "stateCode": "AP",
+        "districtId": "AP-01",
+        "constituencyId": None,
+        "scopeLabel": "AP · Anakapalli District (Rajya Sabha)",
+        "readOnly": True,
+    },
+    "sneha.deshmukh": {
+        "id": "6",
+        "fullName": "Sneha Deshmukh",
+        "username": "sneha.deshmukh",
+        "designation": "Nominated Member of Parliament",
+        "role": "MP",
+        "stateCode": None,
+        "districtId": None,
+        "constituencyId": None,
+        "scopeLabel": "National oversight (Nominated MP)",
+        "readOnly": True,
+    },
+}
+
 @app.post("/api/auth/login")
 def login(body: LoginRequest, response: Response):
-    conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
-    cur = conn.cursor()
+    user = None
     pwd_hash = hashlib.sha256(body.password.encode("utf-8")).hexdigest()
-    
-    cur.execute(
-        "SELECT * FROM users WHERE username = %s AND role = %s AND password_hash = %s",
-        (body.username, body.authority, pwd_hash)
-    )
-    user = cur.fetchone()
-    conn.close()
+
+    try:
+        conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM users WHERE username = %s AND role = %s AND password_hash = %s",
+            (body.username, body.authority, pwd_hash)
+        )
+        user = cur.fetchone()
+        conn.close()
+    except Exception as e:
+        print(f"[Auth] Database connection/query error: {e}")
+
+    # Fallback to designated demo accounts if DB lookup fails or user record missing
+    if not user:
+        demo_user = DEMO_USERS_MAP.get(body.username)
+        if demo_user and (demo_user["role"] == body.authority or (body.authority == "MP" and demo_user["role"] == "MP")) and body.password == "Demo@123":
+            user = {
+                "id": demo_user["id"],
+                "full_name": demo_user["fullName"],
+                "username": demo_user["username"],
+                "designation": demo_user["designation"],
+                "role": demo_user["role"],
+                "state_code": demo_user["stateCode"] or body.stateCode,
+                "district_id": demo_user["districtId"] or body.districtId,
+                "constituency_id": demo_user["constituencyId"] or body.constituencyId,
+                "scope_label": demo_user["scopeLabel"],
+                "read_only": demo_user["readOnly"],
+            }
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials for the selected authority.")
@@ -192,9 +292,11 @@ def login(body: LoginRequest, response: Response):
         value=session_id,
         httponly=False,
         max_age=86400 * 7,
-        path="/"
+        path="/",
+        samesite="none",
+        secure=True
     )
-    return {"user": session_user}
+    return {"user": session_user, "token": session_id}
 
 @app.get("/api/auth/me")
 def get_me(request: Request):
@@ -206,9 +308,13 @@ def get_me(request: Request):
 @app.post("/api/auth/logout")
 def logout(response: Response, request: Request):
     cookie_val = request.cookies.get("savidhan_session")
+    if not cookie_val:
+        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            cookie_val = auth_header.split(" ")[1]
     if cookie_val and cookie_val in SESSIONS:
         del SESSIONS[cookie_val]
-    response.delete_cookie(key="savidhan_session", path="/")
+    response.delete_cookie(key="savidhan_session", path="/", samesite="none", secure=True)
     return {"status": "logged_out"}
 
 # ==============================================================================

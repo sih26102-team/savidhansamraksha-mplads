@@ -284,7 +284,7 @@ export async function customFetch(input, options = {}) {
         }
     }
     const requestInfo = { method, url: resolveUrl(input) };
-    const response = await fetch(input, { ...init, method, headers });
+    const response = await fetch(input, { credentials: init.credentials || "include", ...init, method, headers });
     if (!response.ok) {
         const errorData = await parseErrorBody(response, method);
         throw new ApiError(response, errorData, requestInfo);
