@@ -37,7 +37,7 @@ async function main() {
   const viteJs = path.resolve(webDir, 'node_modules/vite/bin/vite.js');
   const webProcess = spawn(
     process.execPath,
-    [viteJs, '--config', 'vite.config.ts', '--host', '0.0.0.0'],
+    [viteJs, '--config', 'vite.config.js', '--host', '0.0.0.0'],
     {
       cwd: webDir,
       stdio: 'inherit',
