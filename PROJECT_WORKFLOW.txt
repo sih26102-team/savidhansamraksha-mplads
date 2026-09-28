@@ -1,0 +1,210 @@
+================================================================================
+🏛️ SAVIDHANSAMRAKSHA — CIVICSHIELD MPLADS MONITORING PLATFORM
+Comprehensive Project Workflow & Technology Stack Specification
+================================================================================
+
+1. EXECUTIVE OVERVIEW
+--------------------------------------------------------------------------------
+SavidhanSamraksha (CivicShield) is an AI-powered, multi-tier governance and
+monitoring platform developed for the Members of Parliament Local Area
+Development Scheme (MPLADS) in India (covering 543 Lok Sabha and 250 Rajya Sabha
+constituencies, disbursing ₹5 Crore per MP annually).
+
+The platform solves the critical governance challenge of tracking physical
+vs. financial progress, preventing fund misappropriation, detecting "ghost"
+infrastructure projects, and establishing cryptographic accountability through:
+1. Multi-variable Financial and Temporal Risk Analysis
+2. Unsupervised Machine Learning Outlier Scoring (Isolation Forest)
+3. Computer Vision Field Photo Forensic Auditing (EXIF & Perceptual Hashing)
+4. Multi-Spectral Satellite Earth Observation (ESA Sentinel-2 via Google Earth Engine)
+5. Tamper-evident Administrative State Machine & Audit Chaining
+
+
+================================================================================
+2. END-TO-END SYSTEM WORKFLOW
+================================================================================
+
+The platform operates across 6 integrated workflow phases:
+
++------------------------------------------------------------------------------+
+| PHASE 1: DATA INGESTION & PIPELINE ETL                                       |
++------------------------------------------------------------------------------+
+  • Official MPLADS administrative records are ingested via automated ETL
+    pipelines (project ID, constituency, implementing agency, sanction date,
+    cost, funds released, funds spent, reported physical progress %).
+  • Data normalizers clean inconsistent dates, sanitize financial amounts,
+    and geocode project sites to latitude/longitude coordinates.
+  • Stored securely in PostgreSQL / Neon Cloud Serverless Database.
+
++------------------------------------------------------------------------------+
+| PHASE 2: MULTI-TIER RISK & MACHINE LEARNING INFERENCE                        |
++------------------------------------------------------------------------------+
+  • Every project is automatically evaluated by the ML Risk Engine across three
+    complementary scoring layers:
+    1. Financial-Temporal Module: Detects disbursement velocity mismatches
+       (e.g., 85% funds spent while physical completion is only 15%).
+    2. Administrative Audit Module: Flags missing Utilisation Certificates (UC),
+       tender delays (>90 days), and completion date overruns.
+    3. Isolation Forest ML Outlier Module: Runs scikit-learn Isolation Forest
+       across regional peer projects (same category, state, budget scale)
+       to pinpoint statistical anomalies invisible to standard rule checks.
+  • Outputs a normalized Risk Score (0 to 100) and assigns a Risk Tier:
+    LOW (0-29), MODERATE (30-59), HIGH (60-84), CRITICAL (85-100).
+
++------------------------------------------------------------------------------+
+| PHASE 3: FIELD PHOTO INTELLIGENCE & COMPUTER VISION AUDITING                 |
++------------------------------------------------------------------------------+
+  • When field inspectors or citizens submit milestone photographs:
+    1. Perceptual Hashing (pHash): Computes a 64-bit fingerprint of each image.
+       Compares Hamming distances to detect reused stock photos across
+       different projects or duplicate progress claims within the same work.
+    2. EXIF Metadata Forensic Parser: Inspects hardware tags, original camera
+       timestamps, and embedded GPS tags. Stripped or tampered EXIF is flagged.
+    3. Geospatial Geofence Verification: Computes spatial distance between photo
+       GPS coordinates and the project centroid. Images taken outside the
+       permitted perimeter (>15 km) trigger a Geofence Mismatch Anomaly.
+
++------------------------------------------------------------------------------+
+| PHASE 4: SATELLITE EARTH OBSERVATION & CHANGE DETECTION                      |
++------------------------------------------------------------------------------+
+  • Analyzes Copernicus Sentinel-2 10m multi-spectral optical satellite imagery
+    queried via Google Earth Engine (GEE):
+    1. Dual-Temporal Windowing: Acquires pre-construction baseline imagery (T0)
+       at sanction date and current progress imagery (T1).
+    2. Spectral Index Computation:
+       - NDBI (Normalized Difference Built-up Index): Measures structural
+         concrete, masonry, and roofing changes.
+       - NDVI (Normalized Difference Vegetation Index): Measures land clearing.
+    3. 100m Point-Radius Zonal Reduction: Averages reflectance over the site.
+    4. Cloud Cover Mitigation: Automatically filters cloud occlusion using QA60/SCL
+       masks. If overcast (>70%), re-normalizes risk weights without penalty.
+    5. Forensic Ground Classification:
+       - GHOST PROJECT: Funds spent or high progress reported, but near-zero
+         satellite ground transformation detected (ΔNDBI < +0.02).
+       - UNAUTHORIZED CONSTRUCTION: Heavy ground construction detected on site
+         with zero administrative clearance or reports (ΔNDBI > +0.18).
+       - VERIFIED ACTIVE CONSTRUCTION: Physical progress confirmed by satellite.
+
++------------------------------------------------------------------------------+
+| PHASE 5: INTERACTIVE DASHBOARD & INVESTIGATIVE RADAR HUD                     |
++------------------------------------------------------------------------------+
+  • State & District Dashboards: Visual heatmaps, sector breakdown charts,
+    and priority escalation queues for District Collectors and CAG Auditors.
+  • Project Deep-Dive View:
+    - Side-by-side Dual-Date Satellite Radar Canvas (T0 vs. T1 lenses).
+    - Interactive "Run Live Sentinel-2 Scan" button triggering an animated
+      orbital acquisition HUD with radar sweep cone, telemetry progress,
+      and dynamic "LIVE SCAN VERIFIED" certification badge.
+    - Plain-English Forensic Explanations for all non-technical stakeholders.
+
++------------------------------------------------------------------------------+
+| PHASE 6: ESCALATION STATE MACHINE & CRYPTOGRAPHIC AUDIT TRAIL                |
++------------------------------------------------------------------------------+
+  • Automated State Machine: Transitions projects through formal governance
+    states: NORMAL -> FLAGGED -> UNDER_REVIEW -> ESCALATED -> SANCTION_FROZEN.
+  • SLA Enforcement: District Collectors are notified with hard review deadlines.
+  • Cryptographic Audit Chain: Every administrative action, inquiry, or sanction
+    freeze is stamped with a SHA-256 hash chained to the previous entry,
+    ensuring tamper-proof accountability.
+
+
+================================================================================
+3. COMPLETE TECHNOLOGY STACK
+================================================================================
+
+A. FRONTEND USER INTERFACE & VISUALIZATION
+--------------------------------------------------------------------------------
+  • React 19 (Modern Single Page Application Architecture)
+  • Vite 7 (Ultra-fast HMR and production bundle optimization)
+  • Tailwind CSS (v4 governance dark-mode styling and layout system)
+  • Lucide React (Clean, accessible governance and telemetry icons)
+  • HTML5 SVG Canvas Engines:
+    - Custom Dual-Date Satellite Observation Lens Engine (T0 vs. T1)
+    - Animated Space Radar HUD with concentric sweep beams & telemetry ticker
+    - Ground change crosshair reticles & spectral delta readouts
+  • Responsive UI: Designed for desktop command centers, tablets, & mobile.
+
+B. BACKEND API & DATA SERVICES
+--------------------------------------------------------------------------------
+  • Python 3.11+ / FastAPI: High-throughput asynchronous REST API server
+  • Uvicorn: ASGI high-concurrency production server
+  • Pydantic v2: Strict request/response data validation and schema enforcement
+  • Node.js & TypeScript (backend-case): Escalation router & state machine
+  • psycopg2-binary: Resilient pooled PostgreSQL connection management
+  • Python-Multipart: Secure multipart file uploads for field evidence
+
+C. MACHINE LEARNING & RISK INTELLIGENCE
+--------------------------------------------------------------------------------
+  • Scikit-Learn:
+    - Isolation Forest (Unsupervised statistical anomaly & outlier detection)
+    - MinMax & Robust Scalers for peer-group metric normalization
+  • NumPy & Pandas: High-speed tabular feature engineering & mathematical deltas
+  • Joblib: Model serialization and caching
+  • Hybrid Inference: Domain heuristic rules + ML peer anomaly scoring
+
+D. COMPUTER VISION & PHOTO FORENSICS
+--------------------------------------------------------------------------------
+  • Pillow (PIL): Image decoding, resizing, and color space transformations
+  • ImageHash: Perceptual hashing (pHash) for Hamming distance fraud checks
+  • ExifRead / Native EXIF Parser: Extracts camera hardware, ISO, timestamps,
+    and embedded GPS coordinates
+  • Shapely: Spatial geometry operations and geofence boundary checks
+
+E. SATELLITE REMOTE SENSING & EARTH OBSERVATION
+--------------------------------------------------------------------------------
+  • Google Earth Engine API (earthengine-api): Programmatic access to ESA
+    Copernicus Sentinel-2 Level-2A Multi-Spectral BOA Surface Reflectance tiles
+  • Multi-Spectral Bands Used:
+    - Band 4 (Red, 665 nm)
+    - Band 8 (Near-Infrared / NIR, 842 nm)
+    - Band 11 (Shortwave-Infrared / SWIR, 1610 nm)
+  • Spectral Formulas:
+    - NDBI = (SWIR - NIR) / (SWIR + NIR)  [Built-up structural alteration]
+    - NDVI = (NIR - Red) / (NIR + Red)    [Vegetation / ground clearing]
+  • Cloud Occlusion Filters: Sentinel-2 QA60 cloud bitmask & SCL scene classification
+  • Dual-Mode Architecture:
+    - High-Speed Mock Mode: Sub-50ms deterministic response for live presentations
+    - Live GEE Mode: Live orbital queries with cloud-native credential loading
+
+F. DATABASE & PERSISTENCE
+--------------------------------------------------------------------------------
+  • PostgreSQL 15+ / Neon Cloud Serverless Database
+  • Drizzle ORM & Raw SQL Optimizations for complex aggregation queries
+  • Relational Schema: Projects, Disbursals, Evidence Photos, Audit Logs, Users
+  • Cryptographic Ledger: SHA-256 hash-chained immutable audit trail
+
+G. CLOUD, DEVOPS & SECURITY INFRASTRUCTURE
+--------------------------------------------------------------------------------
+  • Render: Hosting FastAPI & ML Inference services with automatic CI/CD
+  • Vercel: High-speed edge CDN deployment for the React SPA
+  • Cloud-Native Secret Management: Zero .env files tracked in Git; direct
+    environment variable loading (GEE_SERVICE_ACCOUNT_JSON) & /etc/secrets/
+  • Docker & Docker Compose: Multi-container orchestration (API, DB, Frontend)
+  • GitHub Actions: Continuous Integration test pipeline (8/8 Satellite,
+    7/7 Isolation Forest, 10/10 Visual Engine tests passing at 100%)
+
+
+================================================================================
+4. SUMMARY TABLE: WHAT EACH TECHNOLOGY DOES
+================================================================================
+
+| Technology            | Category           | Specific Role in CivicShield                    |
+|:----------------------|:-------------------|:------------------------------------------------|
+| React 19 + Vite 7     | Frontend           | Real-time monitoring dashboard, radar animations|
+| Tailwind CSS          | UI Styling         | Responsive command-center dark UI design        |
+| Lucide React          | Icons              | Telemetry, risk indicators, navigation icons    |
+| FastAPI + Uvicorn     | Backend API        | REST endpoints for scoring, scans, and data     |
+| PostgreSQL / Neon     | Database           | Scalable relational store for works & logs      |
+| Scikit-Learn          | Machine Learning   | Isolation Forest peer-group anomaly detection   |
+| NumPy & Pandas        | Data Processing    | Feature extraction, financial velocity deltas   |
+| Pillow + ImageHash    | Computer Vision    | pHash image duplicate & fraud detection         |
+| Shapely               | Geospatial         | Geofence verification & boundary mathematics    |
+| Google Earth Engine   | Earth Observation  | Cloud API querying Copernicus Sentinel-2 tiles  |
+| Sentinel-2 MSI        | Remote Sensing     | 10m NDBI/NDVI dual-date spectral delta analysis |
+| SHA-256 Hashing       | Security / Audit   | Immutable cryptographic audit chain logging     |
+| Render + Vercel       | Cloud Hosting      | Automated CI/CD deployment for Web & ML Engine  |
+| Docker                | DevOps             | Reproducible containerized local development    |
+
+================================================================================
+Generated for SavidhanSamraksha (CivicShield) MPLADS Monitoring Platform
+================================================================================
