@@ -73,6 +73,7 @@ def _resolve_credentials_path() -> Optional[str]:
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         env_path,
+        "/etc/secrets/gee-service-account.json",  # Render official secret file mount
         os.path.join(here, "credentials", "gee-service-account.json"),
         os.path.join(here, "..", "ml-engine", "credentials", "gee-service-account.json"),
         "ml-engine/credentials/gee-service-account.json",
@@ -98,12 +99,12 @@ def init_earth_engine(force_live: bool = False) -> bool:
     """
     Initializes Google Earth Engine with dual-mode operational support.
     
-    1. If GEE_MOCK_MODE=true and force_live=False:
-       Logs 'GEE running in Fast UI Mock Mode' and skips network init.
-    2. If force_live=True or GEE_MOCK_MODE=false:
-       Attempts to authenticate via service account JSON or default credentials.
-       Logs 'Google Earth Engine authenticated successfully.' on success.
-    3. Never raises unhandled exceptions.
+    Credential loading priority (100% cloud-native & .env-free):
+    1. GEE_SERVICE_ACCOUNT_JSON env var (direct JSON string from Render / Cloud dashboard)
+    2. GEE_SERVICE_ACCOUNT_B64 env var (base64-encoded JSON string)
+    3. Render Secret File (/etc/secrets/gee-service-account.json)
+    4. Local credentials file (ml-engine/credentials/gee-service-account.json)
+    5. Google Application Default Credentials (ADC) or ee.Initialize()
     """
     global _GEE_INITIALIZED, _GEE_STATUS
 
@@ -122,43 +123,81 @@ def init_earth_engine(force_live: bool = False) -> bool:
         logger.warning("earthengine-api package not installed. Operating in Fast UI Mock Mode.")
         return False
 
-    key_path = _resolve_credentials_path()
     credentials = None
+    project_id = os.environ.get("EE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
 
-    if key_path and os.path.exists(key_path) and _GOOGLE_AUTH_AVAILABLE:
+    # 1. Direct JSON from environment variable (Render Dashboard Environment Variable)
+    raw_json_env = os.environ.get("GEE_SERVICE_ACCOUNT_JSON")
+    if raw_json_env and _GOOGLE_AUTH_AVAILABLE:
         try:
-            with open(key_path, "r", encoding="utf-8") as f:
-                raw_content = f.read().strip()
+            key_dict = json.loads(raw_json_env)
+            if isinstance(key_dict, dict) and "client_email" in key_dict and "private_key" in key_dict:
+                credentials = service_account.Credentials.from_service_account_info(
+                    key_dict,
+                    scopes=["https://www.googleapis.com/auth/earthengine"]
+                )
+                project_id = project_id or key_dict.get("project_id")
+                logger.info("Loaded GEE service account credentials from GEE_SERVICE_ACCOUNT_JSON environment variable.")
+        except Exception as env_err:
+            logger.warning(f"Error parsing GEE_SERVICE_ACCOUNT_JSON env var: {env_err}")
 
+    # 2. Base64-encoded JSON from environment variable
+    if not credentials and _GOOGLE_AUTH_AVAILABLE:
+        b64_env = os.environ.get("GEE_SERVICE_ACCOUNT_B64")
+        if b64_env:
             try:
-                key_dict = json.loads(raw_content)
+                import base64
+                decoded = base64.b64decode(b64_env).decode("utf-8")
+                key_dict = json.loads(decoded)
                 if isinstance(key_dict, dict) and "client_email" in key_dict and "private_key" in key_dict:
                     credentials = service_account.Credentials.from_service_account_info(
                         key_dict,
                         scopes=["https://www.googleapis.com/auth/earthengine"]
                     )
-                else:
+                    project_id = project_id or key_dict.get("project_id")
+                    logger.info("Loaded GEE service account credentials from GEE_SERVICE_ACCOUNT_B64 environment variable.")
+            except Exception as b64_err:
+                logger.warning(f"Error parsing GEE_SERVICE_ACCOUNT_B64 env var: {b64_err}")
+
+    # 3. File-based credentials (Render Secret File or Local credentials)
+    if not credentials and _GOOGLE_AUTH_AVAILABLE:
+        key_path = _resolve_credentials_path()
+        if key_path and os.path.exists(key_path):
+            try:
+                with open(key_path, "r", encoding="utf-8") as f:
+                    raw_content = f.read().strip()
+                try:
+                    key_dict = json.loads(raw_content)
+                    if isinstance(key_dict, dict) and "client_email" in key_dict and "private_key" in key_dict:
+                        credentials = service_account.Credentials.from_service_account_info(
+                            key_dict,
+                            scopes=["https://www.googleapis.com/auth/earthengine"]
+                        )
+                        project_id = project_id or key_dict.get("project_id")
+                        logger.info(f"Loaded GEE credentials from file: {key_path}")
+                    else:
+                        logger.warning(
+                            f"Credentials file at '{key_path}' contains JSON but lacks private_key/client_email fields."
+                        )
+                except json.JSONDecodeError:
                     logger.warning(
-                        f"Credentials file at '{key_path}' contains JSON but lacks private_key/client_email fields."
+                        f"Credentials file at '{key_path}' is not valid JSON (contains raw key ID token)."
                     )
-            except json.JSONDecodeError:
-                logger.warning(
-                    f"Credentials file at '{key_path}' contains raw key ID token ('{raw_content[:12]}...'), not a complete service account JSON dictionary."
-                )
-        except Exception as read_err:
-            logger.warning(f"Error reading credentials file '{key_path}': {read_err}")
+            except Exception as read_err:
+                logger.warning(f"Error reading credentials file '{key_path}': {read_err}")
 
     try:
         if credentials:
-            ee.Initialize(credentials=credentials)
+            if project_id:
+                ee.Initialize(credentials=credentials, project=project_id)
+            else:
+                ee.Initialize(credentials=credentials)
             _GEE_INITIALIZED = True
             _GEE_STATUS = "SERVICE_ACCOUNT_INITIALIZED"
             logger.info("Google Earth Engine authenticated successfully.")
             print("[Satellite Engine] Google Earth Engine authenticated successfully.")
             return True
         else:
-            # Fallback to local default / gcloud ADC or project initialization
-            project_id = os.environ.get("EE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
             if project_id:
                 ee.Initialize(project=project_id)
             else:
