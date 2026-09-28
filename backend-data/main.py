@@ -92,6 +92,15 @@ def fix_sequences():
     except Exception as e:
         print(f"[Startup] Sequence fix error: {e}")
 
+@app.on_event("startup")
+def init_satellite():
+    """Initializes Google Earth Engine dual-mode environment on server startup."""
+    try:
+        from satellite_engine import init_earth_engine
+        init_earth_engine()
+    except Exception as e:
+        print(f"[Startup] GEE initialization notice: {e}")
+
 def get_db():
     conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
     try:

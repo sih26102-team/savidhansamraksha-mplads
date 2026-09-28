@@ -59,3 +59,12 @@ ml-engine/__pycache__/
 
 # PostgreSQL local data dir
 .postgres-savidhan/
+
+# Credentials & Secrets
+ml-engine/credentials/
+*.json
+!package.json
+!tsconfig.json
+!ml-engine/model_artifacts/weights.json
+.env
+*.env
