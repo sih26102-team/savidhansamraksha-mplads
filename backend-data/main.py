@@ -681,6 +681,7 @@ def list_projects(
             "physicalProgress": float(r["physical_progress_pct"] or 0),
             "riskScore": float(r["risk_score"] or 15.0),
             "riskLevel": r["risk_level"] or "LOW",
+            "alertCategory": "RED" if (float(r["risk_score"] or 0) >= 70.0 or r["risk_level"] in ("HIGH", "CRITICAL")) else ("YELLOW" if float(r["risk_score"] or 0) >= 40.0 else "GREEN"),
             "workflowStatus": r["workflow_status"] or "OPEN",
             "escalationReason": "Payment velocity divergence" if (r["workflow_status"] or "").startswith("ESCALAT") else "",
             "fiscalYear": r["fiscal_year"] or "2023-2024",
@@ -742,6 +743,7 @@ def list_escalated_projects(request: Request):
             "physicalProgress": float(r["physical_progress_pct"] or 0),
             "riskScore": float(r["risk_score"] or 78.5),
             "riskLevel": r["risk_level"] or "HIGH",
+            "alertCategory": "RED" if (float(r["risk_score"] or 0) >= 70.0 or r["risk_level"] in ("HIGH", "CRITICAL")) else "YELLOW",
             "workflowStatus": r["workflow_status"] or "ESCALATED",
             "escalatedByUserName": "Suresh Kumar (District Officer)" if r["workflow_status"] == "ESCALATED" else "Raghavendra Rao (State Nodal)",
             "escalatedByRole": "DISTRICT_AUTHORITY" if r["workflow_status"] == "ESCALATED" else "STATE_NODAL",
@@ -791,21 +793,46 @@ def get_project_detail(work_id: str, request: Request):
     cur.execute("SELECT * FROM progress_updates WHERE work_id = %s ORDER BY update_date ASC", [work_id])
     progress = cur.fetchall()
 
+    # Fetch peer works for Module A peer outlier and duplicate checks
+    cur.execute("""
+        SELECT work_id, work_description, work_category, fiscal_year,
+               sanctioned_amount, expenditure_incurred, physical_progress_pct,
+               latitude, longitude, updated_at, uc_filed
+        FROM projects
+        WHERE work_id != %s
+        LIMIT 40
+    """, [work_id])
+    peers = cur.fetchall() or []
+
     conn.close()
 
-    # Run ML engine dynamic evaluation
+    # Run ML engine dynamic evaluation (Modules A, B, and C)
     ml_eval = evaluate_project_risk({
         "workId": p["work_id"],
-        "estimatedCost": float(p["estimated_cost"]),
-        "sanctionedAmount": float(p["sanctioned_amount"]),
-        "expenditureIncurred": float(p["expenditure_incurred"]),
-        "physicalProgressPct": float(p["physical_progress_pct"]),
+        "work_description": p.get("work_description") or p.get("title"),
+        "title": p.get("work_description") or p.get("title"),
+        "work_category": p.get("work_category") or "OTHER",
+        "category": p.get("work_category") or "OTHER",
+        "fiscal_year": p.get("fiscal_year") or "2023-2024",
+        "fiscalYear": p.get("fiscal_year") or "2023-2024",
+        "agency_id": p.get("agency_id"),
+        "district": p.get("district_name") or "Visakhapatnam",
+        "district_id": p.get("district_id"),
+        "latitude": float(p.get("latitude") or 17.6868) if p.get("latitude") is not None else 17.6868,
+        "longitude": float(p.get("longitude") or 83.2185) if p.get("longitude") is not None else 83.2185,
+        "estimatedCost": float(p["estimated_cost"] or 0),
+        "sanctionedAmount": float(p["sanctioned_amount"] or 0),
+        "expenditureIncurred": float(p["expenditure_incurred"] or 0),
+        "physicalProgressPct": float(p["physical_progress_pct"] or 0),
         "dateOfSanction": p["date_of_sanction"].isoformat() if isinstance(p["date_of_sanction"], (datetime, date)) else str(p["date_of_sanction"]),
         "expectedCompletionDate": p["expected_completion_date"].isoformat() if isinstance(p["expected_completion_date"], (datetime, date)) else str(p["expected_completion_date"]),
         "tenderInvited": bool(p["tender_invited"]),
         "ucFiled": bool(p["uc_filed"]),
         "dataCompleteness": p["data_completeness"] or "COMPLETE",
         "workflowStatus": p["workflow_status"],
+        "peerProjects": peers,
+        "historicalProjects": peers,
+        "progressUpdates": progress,
     })
 
     return {
@@ -830,6 +857,11 @@ def get_project_detail(work_id: str, request: Request):
         "satellite_verification": ml_eval.get("satellite_verification"),
         "satelliteVerification": ml_eval.get("satelliteVerification"),
         "moduleScores": ml_eval.get("moduleScores", {}),
+        "financialTemporalModule": ml_eval.get("financialTemporalModule", {}),
+        "alertCategory": ml_eval.get("alertCategory", "GREEN"),
+        "actionableSummary": ml_eval.get("actionableSummary", ""),
+        "fusion": ml_eval.get("fusion"),
+        "fusionSummary": ml_eval.get("fusionSummary", {}),
         "workflowStatus": p["workflow_status"] or "OPEN",
         "escalationReason": p.get("escalation_reason") or ("Payment velocity divergence" if (p.get("workflow_status") or "").startswith("ESCALAT") else ""),
         "fiscalYear": p["fiscal_year"] or "2023-2024",
@@ -874,10 +906,10 @@ def get_project_detail(work_id: str, request: Request):
         "modules": [
             {
                 "name": "Financial & Temporal",
-                "status": "FLAGGED" if any(f.get("module") == "FINANCIAL_TEMPORAL" and f.get("severity") in ("HIGH", "MODERATE") for f in function_combined) or (ml_eval["riskScore"] >= 70.0 and any(f.get("module") in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR") for f in function_combined)) else "AVAILABLE",
+                "status": "FLAGGED" if any(f.get("module") in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR", "GOVERNANCE_COMPLIANCE") and f.get("severity") in ("HIGH", "MODERATE") for f in function_combined) or (ml_eval["riskScore"] >= 70.0 and any(f.get("module") in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR") for f in function_combined)) else "AVAILABLE",
                 "score": ml_eval["moduleScores"]["financialTemporalScore"],
-                "summary": "Multi-factor expenditure velocity vs ground measurement audit.",
-                "evidence": [f["explanation"] for f in function_combined if f["module"] in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR")] or ["Milestones aligned with scheduled completion dates."],
+                "summary": "Multi-factor expenditure velocity, cost-per-unit, dormancy, and statutory compliance audit.",
+                "evidence": [f["explanation"] for f in function_combined if f["module"] in ("FINANCIAL_TEMPORAL", "TEMPORAL_MONITOR", "GOVERNANCE_COMPLIANCE")] or ["Milestones aligned with scheduled completion dates."],
             },
             {
                 "name": "Visual & Spatial",

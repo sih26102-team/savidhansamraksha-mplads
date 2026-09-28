@@ -52,11 +52,15 @@ function Logo({ compact = false }) {
 function StatusPill({ value, kind = 'risk' }) {
     const key = (value ? String(value) : 'UNKNOWN').toUpperCase();
     const styles = {
+        CRITICAL: 'pill-high',
+        RED: 'pill-high',
+        YELLOW: 'pill-moderate',
+        GREEN: 'pill-low',
         HIGH: 'pill-high', MODERATE: 'pill-moderate', LOW: 'pill-low', DATA_INCOMPLETE: 'pill-incomplete',
         OPEN: 'pill-open', UNDER_REVIEW: 'pill-review', RESOLVED: 'pill-resolved', DISMISSED: 'pill-muted',
         ESCALATED: 'pill-high', ESCALATED_STATE: 'pill-high', CLOSED: 'pill-muted', COMPLETE: 'pill-low', PARTIAL: 'pill-moderate', INCOMPLETE: 'pill-incomplete',
     };
-    const label = key.replaceAll('_', ' ');
+    const label = key === 'RED' ? 'RED ALERT' : key === 'YELLOW' ? 'YELLOW ALERT' : key === 'GREEN' ? 'GREEN CLEAR' : key.replaceAll('_', ' ');
     return <span className={`status-pill ${styles[key] || ''}`} data-testid={`status-${kind}-${key.toLowerCase()}`}><span className="status-dot"/>{label}</span>;
 }
 function ErrorState({ onRetry, message = 'We could not retrieve this workspace view.' }) {
@@ -65,18 +69,192 @@ function ErrorState({ onRetry, message = 'We could not retrieve this workspace v
 function Skeleton({ rows = 4 }) {
     return <div className="space-y-3" data-testid="state-loading">{Array.from({ length: rows }).map((_, index) => <div className="skeleton-row" key={index}><div className="skeleton w-8"/><div className="skeleton flex-1"/><div className="skeleton w-20"/></div>)}</div>;
 }
-function RiskSignalCell({ riskLevel, riskScore }) {
+function RiskSignalCell({ riskLevel, riskScore, alertCategory }) {
     const safeLevel = (riskLevel ? String(riskLevel) : 'LOW').toUpperCase();
     const safeScore = Number(riskScore);
+    const category = alertCategory || (safeScore >= 70 ? 'RED' : safeScore >= 40 ? 'YELLOW' : 'GREEN');
     return (<div className="risk-signal-cell" data-testid={`risk-signal-${safeLevel.toLowerCase()}`}>
-      <div className="risk-pill-row">
+      <div className="risk-pill-row" style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
         <StatusPill value={safeLevel}/>
+        <span style={{
+          fontSize: '9px',
+          fontWeight: 700,
+          padding: '1px 5px',
+          borderRadius: '3px',
+          letterSpacing: '0.04em',
+          background: category === 'RED' ? 'rgba(224, 85, 85, 0.15)' : category === 'YELLOW' ? 'rgba(216, 122, 34, 0.15)' : 'rgba(42, 168, 152, 0.15)',
+          color: category === 'RED' ? '#e05555' : category === 'YELLOW' ? '#d87a22' : '#2aa898',
+          border: `1px solid ${category === 'RED' ? 'rgba(224, 85, 85, 0.35)' : category === 'YELLOW' ? 'rgba(216, 122, 34, 0.35)' : 'rgba(42, 168, 152, 0.35)'}`
+        }}>
+          {category}
+        </span>
       </div>
       <div className="risk-score-row">
         <span className="risk-score-label">Score:</span>
         <span className="risk-score-value">{isNaN(safeScore) ? '0.00' : safeScore.toFixed(2)}</span>
       </div>
     </div>);
+}
+
+function RiskSpeedometerArc({ score, accentColor }) {
+  const clamped = Math.min(100, Math.max(0, Number(score) || 0));
+  // Semi-circle arc: radius 40, cx 52, cy 56
+  // Arc length = PI * 40 ≈ 125.66
+  const totalLength = 125.66;
+  const dashOffset = totalLength * (1 - clamped / 100);
+
+  return (
+    <div className="risk-projection-gauge-box">
+      <svg width="104" height="64" viewBox="0 0 104 64" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="speedometerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="40%" stopColor="#f59e0b" />
+            <stop offset="70%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#ef4444" />
+          </linearGradient>
+          <filter id="gaugeGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        {/* Background Track */}
+        <path
+          d="M 12 56 A 40 40 0 0 1 92 56"
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.12)"
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
+
+        {/* Active Progress Arc */}
+        <path
+          d="M 12 56 A 40 40 0 0 1 92 56"
+          fill="none"
+          stroke="url(#speedometerGrad)"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={totalLength}
+          strokeDashoffset={dashOffset}
+          filter={clamped >= 70 ? "url(#gaugeGlow)" : undefined}
+          style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+        />
+      </svg>
+
+      {/* Center Icon */}
+      <div className="risk-projection-gauge-center">
+        {clamped >= 70 ? (
+          <AlertOctagon size={22} style={{ color: accentColor, filter: 'drop-shadow(0 0 6px currentColor)' }} />
+        ) : clamped >= 40 ? (
+          <AlertTriangle size={22} style={{ color: accentColor, filter: 'drop-shadow(0 0 6px currentColor)' }} />
+        ) : (
+          <ShieldCheck size={22} style={{ color: accentColor, filter: 'drop-shadow(0 0 6px currentColor)' }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RiskScoreProjectionHUD({ score, riskLevel, alertCategory, sanctionedAmount, expenditure, materialityFactor, workflowStatus }) {
+  const safeScore = Number(score) || 0;
+  const clamped = Math.min(100, Math.max(0, safeScore));
+  const category = alertCategory || (clamped >= 70 ? 'RED' : clamped >= 40 ? 'YELLOW' : 'GREEN');
+  const isRed = category === 'RED' || clamped >= 70;
+  const isYellow = !isRed && (category === 'YELLOW' || clamped >= 40);
+  const isCritical = clamped >= 85;
+
+  const cardThemeClass = isRed ? 'risk-projection-red' : isYellow ? 'risk-projection-yellow' : 'risk-projection-green';
+  const badgeThemeClass = isRed ? 'risk-projection-badge-red' : isYellow ? 'risk-projection-badge-yellow' : 'risk-projection-badge-green';
+  const scoreGlowClass = isRed ? 'risk-score-glow-red' : isYellow ? 'risk-score-glow-yellow' : 'risk-score-glow-green';
+  const directiveThemeClass = isRed ? 'risk-directive-red' : isYellow ? 'risk-directive-yellow' : 'risk-directive-green';
+  const accentColor = isRed ? '#ef4444' : isYellow ? '#f59e0b' : '#10b981';
+
+  const badgeLabel = isCritical
+    ? 'CRITICAL AUDIT ESCALATION'
+    : isRed
+    ? 'HIGH ANOMALY THREAT'
+    : isYellow
+    ? 'MODERATE RISK WATCH'
+    : 'VERIFIED CLEAR BENCHMARK';
+
+  const directiveText = isCritical
+    ? 'MANDATORY INTERVENTION: Disproportionate physical-expenditure divergence. Immediate site inspection & billing freeze advised.'
+    : isRed
+    ? 'PRIORITY SCRUTINY: Cross-module divergence flagged. Formal engineering review required.'
+    : isYellow
+    ? 'MONITORING ADVISORY: Milestone variance detected. Standard desk verification queue.'
+    : 'NOMINAL BENCHMARK: Telemetry conforms to regional peer baselines.';
+
+  return (
+    <div className={`risk-projection-card ${cardThemeClass}`} data-testid="risk-score-projection-hud">
+      {/* Top Header */}
+      <div className="risk-projection-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="risk-beacon-wrap" style={{ color: accentColor }}>
+            <span className="risk-beacon-wave" />
+            <span className="risk-beacon-core" />
+          </span>
+          <span className={`risk-projection-badge ${badgeThemeClass}`}>
+            {badgeLabel}
+          </span>
+        </div>
+        <span style={{ fontSize: '9px', fontFamily: 'var(--app-font-mono)', color: '#8fa5b5', letterSpacing: '0.08em', fontWeight: 600 }}>
+          VIGILANCE THREAT INDEX
+        </span>
+      </div>
+
+      {/* Main Score Row with Arc Gauge */}
+      <div className="risk-projection-body">
+        <RiskSpeedometerArc score={clamped} accentColor={accentColor} />
+
+        <div className="risk-projection-score-box">
+          <div className={`risk-projection-giant-score ${scoreGlowClass}`}>
+            <span>{safeScore.toFixed(2)}</span>
+            <span className="risk-projection-denom">/100</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <span style={{
+              fontSize: '9.5px',
+              fontFamily: 'var(--app-font-mono)',
+              fontWeight: 800,
+              padding: '2px 7px',
+              borderRadius: '3px',
+              background: isRed ? '#ef4444' : isYellow ? '#f59e0b' : '#10b981',
+              color: '#ffffff',
+              letterSpacing: '0.05em'
+            }}>
+              {(riskLevel || (isRed ? 'HIGH' : isYellow ? 'MODERATE' : 'LOW')).toUpperCase()} RISK
+            </span>
+            <span style={{ fontSize: '10px', color: '#a0b3c2', fontFamily: 'var(--app-font-mono)' }}>
+              · {materialityFactor ? Number(materialityFactor).toFixed(2) : '1.00'}x Materiality
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Graduated Threat Meter Bar */}
+      <div className="risk-threat-bar-wrap">
+        <div className="risk-threat-bar-track">
+          <div className="risk-threat-bar-ticker" style={{ left: `${Math.min(99, Math.max(1, clamped))}%` }} />
+        </div>
+        <div className="risk-threat-bar-labels">
+          <span>0 LOW</span>
+          <span>40 MODERATE</span>
+          <span>70 HIGH</span>
+          <span>85 CRITICAL</span>
+          <span>100</span>
+        </div>
+      </div>
+
+      {/* Officer Directive Subtitle */}
+      <div className={`risk-projection-directive ${directiveThemeClass}`}>
+        <AlertTriangle size={13} style={{ flexShrink: 0, color: accentColor }} />
+        <span><strong>Directive:</strong> {directiveText}</span>
+      </div>
+    </div>
+  );
 }
 function Sidebar({ user, onLogout }) {
     const [location] = useLocation();
@@ -985,7 +1163,7 @@ function ProjectTable({ items }) {
                 <span className="mt-1 block text-[10px] text-[#8998a2]">{money(item.expenditure)} spent</span>
               </td>
               <td>
-                <RiskSignalCell riskLevel={item.riskLevel} riskScore={item.riskScore}/>
+                <RiskSignalCell riskLevel={item.riskLevel} riskScore={item.riskScore} alertCategory={item.alertCategory}/>
               </td>
               <td><StatusPill value={item.workflowStatus} kind="workflow"/></td>
               <td><span className="font-mono text-[10px] text-[#728495]">{date(item.updatedAt)}</span></td>
@@ -1286,7 +1464,7 @@ function EscalatedProjectsPage() {
                       </span>
                     </td>
                     <td>
-                      <RiskSignalCell riskLevel={item.riskLevel} riskScore={item.riskScore}/>
+                      <RiskSignalCell riskLevel={item.riskLevel} riskScore={item.riskScore} alertCategory={item.alertCategory}/>
                     </td>
                     <td>
                       <StatusPill value={item.workflowStatus} kind="workflow"/>
@@ -2102,20 +2280,61 @@ function ProjectDetailPage() {
     const isCloudy = satVer?.status === 'SATELLITE_DATA_UNAVAILABLE_CLOUDY' || satScore === null || satScore === undefined;
     const isEscalated = item.workflowStatus === 'ESCALATED' || item.workflowStatus === 'ESCALATED_STATE';
 
+    const fusion = item.fusion;
+    const fusionSummary = item.fusionSummary || fusion?.telemetry || {};
+    const alertCategory = item.alertCategory || fusion?.alertCategory || (Number(item.riskScore) >= 70 ? 'RED' : Number(item.riskScore) >= 40 ? 'YELLOW' : 'GREEN');
+    const actionableSummary = item.actionableSummary || fusion?.actionableSummary || '';
+    const materialityFactor = Number(fusionSummary.materialityFactor || (item.sanctionedAmount > 50000000 ? 1.25 : item.sanctionedAmount > 10000000 ? 1.15 : item.sanctionedAmount > 2500000 ? 1.08 : 1.0));
+    const activeModules = fusionSummary.activeModules || (isCloudy ? ['A', 'B'] : ['A', 'B', 'C']);
+    const degradedModules = fusionSummary.degradedModules || (isCloudy ? ['C'] : []);
+    const isCorroborated = Boolean(fusionSummary.corroborationTriggered);
+    const isCartelOverride = Boolean(fusionSummary.hierarchicalOverrideActive);
+    const isNovelOutlier = Boolean(fusionSummary.novelOutlierDetected || (ifScore > 75));
+    const finScore = item.moduleScores?.financialTemporalScore ?? item.financialTemporalModule?.score ?? heuristicScore ?? 0;
+
     return (<PageFrame eyebrow={`PROJECT FILE / ${item.workId}`} title={item.description || item.title || item.workId} subtitle={`${item.district || '—'}${item.state ? `, ${item.state}` : ''} · ${categoryDisplayNames[item.category] || item.category || 'General'} · ${item.fiscalYear || '—'}`} actions={<Link href="/projects" className="button button-secondary" data-testid="link-back-projects">
           <ChevronLeft size={14}/> Back to projects
         </Link>}>
-      <div className="detail-top">
-        <div className="detail-statuses">
-          <StatusPill value={item.riskLevel}/>
-          <StatusPill value={item.workflowStatus} kind="workflow"/>
-          <span className="font-mono text-[10px] text-[#7b8d9a]">Updated {date(item.updatedAt)}</span>
+      <div className="detail-top" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '22px' }}>
+        <div className="detail-statuses" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', paddingTop: '6px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <StatusPill value={alertCategory} kind="alert"/>
+            <StatusPill value={item.riskLevel}/>
+            <StatusPill value={item.workflowStatus} kind="workflow"/>
+          </div>
+          <span className="font-mono text-[11px] text-[#869aa8]">
+            Updated {date(item.updatedAt)} · Authority Scope: {item.district || 'National'}
+          </span>
+          {isEscalated && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '4px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
+              color: '#fca5a5',
+              fontSize: '11px',
+              fontFamily: 'var(--app-font-mono)',
+              fontWeight: 700,
+              letterSpacing: '0.04em'
+            }}>
+              <AlertOctagon size={14} style={{ color: '#ef4444' }} />
+              ACTIVE ESCALATION PENDING OFFICIAL ACTION
+            </div>
+          )}
         </div>
-        <div className="detail-confidence">
-          <span className="eyebrow">RISK SCORE</span>
-          <strong>{(Number(item.riskScore) || 0).toFixed(2)}</strong>
-          <span>Model output · synthetic</span>
-        </div>
+
+        <RiskScoreProjectionHUD
+          score={item.riskScore}
+          riskLevel={item.riskLevel}
+          alertCategory={alertCategory}
+          sanctionedAmount={item.sanctionedAmount}
+          expenditure={item.expenditure}
+          materialityFactor={materialityFactor}
+          workflowStatus={item.workflowStatus}
+        />
       </div>
 
       <div className="detail-layout">
@@ -2145,94 +2364,288 @@ function ProjectDetailPage() {
           <section className="surface-card">
             <div className="section-heading">
               <div>
-                <div className="eyebrow">RISK INTELLIGENCE</div>
-                <h3>Why this record was flagged</h3>
+                <div className="eyebrow">DECISION SUPPORT & FUSION LAYER</div>
+                <h3>Automated Risk Intelligence</h3>
               </div>
-              <span className="ai-tag"><Sparkles size={12}/> AI-assisted</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  background: alertCategory === 'RED' ? 'rgba(224, 85, 85, 0.15)' : alertCategory === 'YELLOW' ? 'rgba(216, 122, 34, 0.15)' : 'rgba(42, 168, 152, 0.15)',
+                  color: alertCategory === 'RED' ? '#f07070' : alertCategory === 'YELLOW' ? '#e29a3a' : '#5ec9b5',
+                  border: `1px solid ${alertCategory === 'RED' ? 'rgba(224, 85, 85, 0.4)' : alertCategory === 'YELLOW' ? 'rgba(216, 122, 34, 0.4)' : 'rgba(42, 168, 152, 0.4)'}`
+                }}>
+                  <span style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    background: 'currentColor',
+                    boxShadow: alertCategory === 'RED' ? '0 0 6px #f07070' : alertCategory === 'YELLOW' ? '0 0 6px #e29a3a' : 'none',
+                  }} />
+                  {alertCategory} ALERT · {(item.riskLevel || 'LOW').toUpperCase()}
+                </span>
+                <span className="ai-tag"><Sparkles size={12}/> Fusion calibrated</span>
+              </div>
             </div>
+
+            {/* Actionable Decision Support Callout */}
+            {actionableSummary && (
+              <div style={{
+                margin: '12px 20px',
+                padding: '12px 16px',
+                borderRadius: '6px',
+                background: alertCategory === 'RED' ? 'rgba(224, 85, 85, 0.08)' : alertCategory === 'YELLOW' ? 'rgba(216, 122, 34, 0.08)' : 'rgba(42, 168, 152, 0.08)',
+                border: `1px solid ${alertCategory === 'RED' ? 'rgba(224, 85, 85, 0.25)' : alertCategory === 'YELLOW' ? 'rgba(216, 122, 34, 0.25)' : 'rgba(42, 168, 152, 0.25)'}`,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <div style={{
+                  color: alertCategory === 'RED' ? '#f07070' : alertCategory === 'YELLOW' ? '#e29a3a' : '#5ec9b5',
+                  marginTop: '2px',
+                  flexShrink: 0
+                }}>
+                  {alertCategory === 'RED' ? <AlertOctagon size={18}/> : alertCategory === 'YELLOW' ? <AlertTriangle size={18}/> : <ShieldCheck size={18}/>}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    color: alertCategory === 'RED' ? '#f07070' : alertCategory === 'YELLOW' ? '#e29a3a' : '#5ec9b5',
+                    marginBottom: '2px'
+                  }}>
+                    ACTIONABLE DECISION SUPPORT RECOMMENDATION
+                  </div>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#c0d0dc', lineHeight: '1.5' }}>
+                    {actionableSummary}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Special Hierarchical Banners */}
+            {isCorroborated && (
+              <div style={{
+                margin: '10px 20px',
+                padding: '12px 16px',
+                background: 'rgba(224, 85, 85, 0.12)',
+                borderRadius: '6px',
+                border: '1px solid rgba(224, 85, 85, 0.45)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <AlertOctagon size={18} style={{ color: '#ff6b6b', flexShrink: 0, marginTop: '2px' }}/>
+                <div>
+                  <strong style={{ color: '#ff7b7b', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
+                    CRITICAL CORROBORATED FRAUD SIGNAL · AUTOMATIC ESCALATION
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#ffd0d0', lineHeight: '1.45' }}>
+                    Cross-Module Confirmation: Module A's financial stall / billing inflation anomaly is directly corroborated by Module B's detection of duplicate milestone photographs. Reported physical progress is synthetic while funds are flowing. Escalated straight to Critical priority.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isCartelOverride && (
+              <div style={{
+                margin: '10px 20px',
+                padding: '12px 16px',
+                background: 'rgba(216, 122, 34, 0.12)',
+                borderRadius: '6px',
+                border: '1px solid rgba(216, 122, 34, 0.45)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <Landmark size={18} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }}/>
+                <div>
+                  <strong style={{ color: '#f59e0b', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
+                    HIERARCHICAL OVERRIDE · FINANCIAL NETWORK COLLUSION & BID-RIGGING
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#fed7aa', lineHeight: '1.45' }}>
+                    Edge Case C: Asset physically verified on ground and satellite, but high risk of financial network collusion detected. Statutory tendering was omitted alongside repeated agency-approver concentration. Overridden to HIGH RISK regardless of clean physical evidence.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isNovelOutlier && !isCorroborated && !isCartelOverride && (
+              <div style={{
+                margin: '10px 20px',
+                padding: '12px 16px',
+                background: 'rgba(168, 85, 247, 0.12)',
+                borderRadius: '6px',
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <Sparkles size={18} style={{ color: '#c084fc', flexShrink: 0, marginTop: '2px' }}/>
+                <div>
+                  <strong style={{ color: '#c084fc', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
+                    OUT-OF-DISTRIBUTION NOVEL FRAUD DETECTED (UNSUPERVISED ML OUTLIER)
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#e9d5ff', lineHeight: '1.45' }}>
+                    Edge Case D: Multi-dimensional statistical divergence departed from regional peer baselines without single-rule breach alone. Surfaced by unsupervised Isolation Forest for priority human investigative audit.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <p className="disclaimer">These are model-generated signals based on available records and imagery. They are not legal findings. Each flag includes specific evidence and is subject to human review.</p>
 
-            {/* Risk Score Audit Breakdown — 4-layer multi-modal synthesis */}
-            {ifScore !== undefined && ifScore !== null && (
-                <div style={{ marginBottom: '14px', padding: '12px 16px', background: '#0e2537', borderRadius: '6px', border: '1px solid #1e3d57' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', color: '#91a4b4', fontWeight: 700, letterSpacing: '0.06em' }}>RISK SCORE AUDIT BREAKDOWN · MULTI-MODAL SYNTHESIS</span>
-                        <span style={{ fontSize: '11px', color: '#f0c070', fontWeight: 600 }}>
-                            Composite Score: <strong>{(Number(item.riskScore) || 0).toFixed(2)}</strong> / 100 ({item.riskLevel})
-                        </span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginTop: '6px' }}>
-                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>1. Domain Rules ({isCloudy ? '58.8%' : '50%'} weight)</span>
-                            <strong style={{ fontSize: '14px', color: '#7abfcf' }}>{heuristicScore !== undefined ? Number(heuristicScore).toFixed(2) : '0.00'}</strong>
-                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>Fiscal divergence & deadline telemetry</small>
-                        </div>
-
-                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>2. Isolation Forest ({isCloudy ? '23.5%' : '20%'} weight)</span>
-                            <strong style={{ fontSize: '14px', color: ifStatus === 'OUTLIER' ? '#e07a5f' : '#6bba9a' }}>
-                                {Number(ifScore).toFixed(2)} <span style={{ fontSize: '10px', opacity: 0.8 }}>({ifStatus})</span>
-                            </strong>
-                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>Unsupervised outlier detection vs 40 peers</small>
-                        </div>
-
-                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>3. Visual Forensics ({isCloudy ? '17.6%' : '15%'} weight)</span>
-                            <strong style={{ fontSize: '14px', color: (visualScore || 15) >= 60 ? '#e07a5f' : '#7abfcf' }}>
-                                {visualScore !== undefined && visualScore !== null ? Number(visualScore).toFixed(2) : '15.00'}
-                            </strong>
-                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>pHash deduplication & EXIF geofencing</small>
-                        </div>
-
-                        <div style={{ padding: '8px 10px', background: isCloudy ? 'rgba(100,120,140,0.06)' : 'rgba(42, 168, 152, 0.08)', borderRadius: '4px', border: `1px solid ${isCloudy ? 'rgba(255,255,255,0.06)' : 'rgba(42, 168, 152, 0.25)'}` }}>
-                            <span style={{ fontSize: '10px', color: isCloudy ? '#8ca1b3' : '#62cfbe', display: 'block' }}>
-                                4. Sentinel-2 Satellite {isCloudy ? '(Bypassed)' : '(15% weight)'}
-                            </span>
-                            <strong style={{ fontSize: '14px', color: isCloudy ? '#8ca1b3' : ((satScore || 0) >= 60 ? '#e07a5f' : '#6bba9a') }}>
-                                {isCloudy ? 'Overcast (0 penalty)' : `${Number(satScore || 0).toFixed(2)}`}
-                            </strong>
-                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>
-                                {isCloudy ? 'Cloud cover >70%; skipped safely' : (satVer ? `NDBI delta: ${satVer.ndbi_delta >= 0 ? '+' : ''}${Number(satVer.ndbi_delta).toFixed(3)} · Cloud: ${satVer.cloud_cover_pct}%` : 'Multi-spectral change detection')}
-                            </small>
-                        </div>
-
-                        {isEscalated && (
-                            <div style={{ padding: '8px 10px', background: 'rgba(224, 122, 95, 0.08)', borderRadius: '4px', border: '1px solid rgba(224, 122, 95, 0.25)' }}>
-                                <span style={{ fontSize: '10px', color: '#f09080', display: 'block' }}>5. Authority Priority Escalation</span>
-                                <strong style={{ fontSize: '14px', color: '#e07a5f' }}>+75.80 Floor</strong>
-                                <small style={{ fontSize: '10px', color: '#d08070', display: 'block', marginTop: '2px' }}>Elevated by District/State Authority review</small>
-                            </div>
-                        )}
-                    </div>
-
-                    {isCloudy && (
-                        <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(42, 168, 152, 0.08)', borderRadius: '4px', fontSize: '11px', color: '#7ad0c0', lineHeight: '1.4' }}>
-                            ☁️ <strong>Atmospheric Overcast Advisory:</strong> Sentinel-2 optical sensors encountered persistent cloud cover (&gt;70%) over the work site coordinates. Model weights were dynamically re-normalized across domain rules, Isolation Forest, and visual ground forensics with zero score penalty to prevent false alarms.
-                        </div>
+            {/* 3-Module Cross-Telemetry Breakdown */}
+            <div style={{ margin: '0 20px 14px', padding: '14px 16px', background: '#0e2537', borderRadius: '6px', border: '1px solid #1e3d57' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <span style={{ fontSize: '10px', color: '#91a4b4', fontWeight: 700, letterSpacing: '0.06em', display: 'block' }}>
+                    CROSS-MODULE WEIGHTED FUSION & MATERIALITY CALIBRATION
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '3px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '11px', color: '#7ad0c0' }}>
+                      Active Engines: <strong>[{activeModules.join(', ')}]</strong>
+                    </span>
+                    {degradedModules.length > 0 && (
+                      <span style={{ fontSize: '11px', color: '#e2a090' }}>
+                        · Degraded / Bypassed: <strong>[{degradedModules.join(', ')}]</strong>
+                      </span>
                     )}
-
-                    {isEscalated && (
-                        <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(224, 122, 95, 0.1)', borderRadius: '4px', fontSize: '11px', color: '#e2a090', lineHeight: '1.4' }}>
-                            ℹ️ <strong>Score Explanation:</strong> Baseline multi-modal telemetry scored {(
-                                isCloudy
-                                    ? ((Number(heuristicScore || 0) * (50/85)) + (Number(ifScore || 0) * (20/85)) + (Number(visualScore || 15) * (15/85)))
-                                    : ((Number(heuristicScore || 0) * 0.50) + (Number(ifScore || 0) * 0.20) + (Number(visualScore || 15) * 0.15) + (Number(satScore || 0) * 0.15))
-                            ).toFixed(1)} points. Because this project was formally escalated by an official, the system applies a statutory <strong>+75.80 Priority Floor</strong> to guarantee immediate visibility in the oversight queue.
-                        </div>
-                    )}
+                  </div>
                 </div>
-            )}
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '10px', color: '#8ca1b3' }}>Materiality Factor:</div>
+                  <strong style={{ fontSize: '13px', color: materialityFactor > 1.0 ? '#f0c070' : '#8ca1b3' }}>
+                    {materialityFactor.toFixed(2)}x Multiplier
+                  </strong>
+                  <span style={{ fontSize: '10px', color: '#688499', marginLeft: '6px' }}>
+                    ({money(item.sanctionedAmount || item.expenditure)} Capital)
+                  </span>
+                </div>
+              </div>
+
+              {/* 3 Module Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginTop: '10px' }}>
+                {/* Module A */}
+                <div style={{ padding: '10px 12px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '5px', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '10px', color: '#93c5fd', fontWeight: 700 }}>MODULE A: FINANCIAL & TEMPORAL</span>
+                    <span style={{ fontSize: '9px', color: '#bfdbfe', background: 'rgba(59, 130, 246, 0.2)', padding: '1px 5px', borderRadius: '3px' }}>
+                      {isCloudy ? '66.7% Weight' : '50% Weight'}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <strong style={{ fontSize: '16px', color: Number(finScore) >= 60 ? '#f87171' : '#60a5fa' }}>
+                      {Number(finScore).toFixed(2)}
+                    </strong>
+                    <span style={{ fontSize: '10px', color: '#93c5fd' }}>/ 100</span>
+                  </div>
+                  <small style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                    Cost-per-unit IQR, dormancy velocity, smurfing, and tender compliance
+                  </small>
+                </div>
+
+                {/* Module B */}
+                <div style={{ padding: '10px 12px', background: 'rgba(14, 165, 233, 0.08)', borderRadius: '5px', border: '1px solid rgba(14, 165, 233, 0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '10px', color: '#7dd3fc', fontWeight: 700 }}>MODULE B: VISUAL & SPATIAL</span>
+                    <span style={{ fontSize: '9px', color: '#bae6fd', background: 'rgba(14, 165, 233, 0.2)', padding: '1px 5px', borderRadius: '3px' }}>
+                      {isCloudy ? '33.3% Weight' : '25% Weight'}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <strong style={{ fontSize: '16px', color: Number(visualScore || 15) >= 60 ? '#f87171' : '#38bdf8' }}>
+                      {Number(visualScore || 15).toFixed(2)}
+                    </strong>
+                    <span style={{ fontSize: '10px', color: '#7dd3fc' }}>/ 100</span>
+                  </div>
+                  <small style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                    Perceptual hash deduplication, sequential reuse, and EXIF geofencing
+                  </small>
+                </div>
+
+                {/* Module C */}
+                <div style={{ padding: '10px 12px', background: isCloudy ? 'rgba(100, 116, 139, 0.08)' : 'rgba(16, 185, 129, 0.08)', borderRadius: '5px', border: `1px solid ${isCloudy ? 'rgba(100, 116, 139, 0.25)' : 'rgba(16, 185, 129, 0.25)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '10px', color: isCloudy ? '#94a3b8' : '#6ee7b7', fontWeight: 700 }}>
+                      MODULE C: SENTINEL-2 EO
+                    </span>
+                    <span style={{ fontSize: '9px', color: isCloudy ? '#94a3b8' : '#a7f3d0', background: isCloudy ? 'rgba(100, 116, 139, 0.2)' : 'rgba(16, 185, 129, 0.2)', padding: '1px 5px', borderRadius: '3px' }}>
+                      {isCloudy ? 'Degraded (Bypassed)' : '25% Weight'}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <strong style={{ fontSize: '16px', color: isCloudy ? '#94a3b8' : ((satScore || 0) >= 60 ? '#f87171' : '#34d399') }}>
+                      {isCloudy ? 'Overcast (0 Penalty)' : Number(satScore || 0).toFixed(2)}
+                    </strong>
+                    {!isCloudy && <span style={{ fontSize: '10px', color: '#6ee7b7' }}>/ 100</span>}
+                  </div>
+                  <small style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                    {isCloudy
+                      ? 'Cloud cover >70%; re-normalized across A & B gracefully'
+                      : (satVer ? `NDBI: ${satVer.ndbi_delta >= 0 ? '+' : ''}${Number(satVer.ndbi_delta).toFixed(3)} · Cloud: ${satVer.cloud_cover_pct}%` : 'Multi-spectral bi-temporal change detection')
+                    }
+                  </small>
+                </div>
+              </div>
+
+              {isCloudy && (
+                <div style={{ marginTop: '10px', padding: '6px 10px', background: 'rgba(42, 168, 152, 0.08)', borderRadius: '4px', fontSize: '11px', color: '#7ad0c0', lineHeight: '1.4' }}>
+                  ☁️ <strong>Graceful Degradation Active:</strong> Sentinel-2 optical sensors encountered persistent cloud cover (&gt;70%) over the work site coordinates. Model weights were dynamically re-normalized across Module A (66.7%) and Module B (33.3%) with zero penalty to protect from false alarms.
+                </div>
+              )}
+
+              {isEscalated && (
+                <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(224, 122, 95, 0.1)', borderRadius: '4px', fontSize: '11px', color: '#e2a090', lineHeight: '1.4' }}>
+                  ℹ️ <strong>Authority Statutory Floor:</strong> This project was formally escalated by oversight leadership. The system applies a statutory <strong>+75.80 Priority Floor</strong> to guarantee immediate oversight visibility.
+                </div>
+              )}
+            </div>
 
             <div className="finding-list">
               {item.findings.map((finding, index) => {
+                const isCorrob = finding.module === 'FUSION_CORROBORATION';
+                const isOverride = finding.module === 'FUSION_COLLUSION_OVERRIDE';
+                const isFinTemporal = finding.module === 'MODULE_A_FINANCIAL_TEMPORAL' || (finding.detector && ['COST_PER_UNIT_OUTLIER', 'PROGRESS_SILENCE_DORMANT', 'NEAR_DUPLICATE_WORK', 'SPLIT_WORKS_SMURFING', 'NO_TENDER_SANCTION', 'UNSPENT_ACCUMULATION'].includes(finding.detector));
                 const isIF = finding.module === 'UNEXPLAINED_OUTLIER_ANOMALY';
                 const isVisual = ['DUPLICATE_CROSS_PROJECT_PHOTO','DUPLICATE_SEQUENTIAL_PHOTO','MISSING_EXIF_METADATA','GEOFENCE_MISMATCH_ANOMALY'].includes(finding.module);
                 const isSatellite = ['GHOST_PROJECT_NO_PHYSICAL_CHANGE','UNAUTHORIZED_UNREPORTED_CONSTRUCTION','SATELLITE_VERIFICATION_SKIPPED'].includes(finding.module);
-                const moduleTag = isIF ? 'Isolation Forest' : isVisual ? 'Visual Engine' : isSatellite ? 'Sentinel-2 Satellite' : 'Domain Rules';
-                const moduleColor = isIF ? '#c06090' : isVisual ? '#5090c0' : isSatellite ? '#2aa898' : '#6a9a7a';
+
+                let moduleTag = 'Domain Rules';
+                let moduleColor = '#6a9a7a';
+                if (isCorrob) {
+                  moduleTag = 'Critical Corroboration';
+                  moduleColor = '#e05555';
+                } else if (isOverride) {
+                  moduleTag = 'Cartel Collusion Override';
+                  moduleColor = '#d87a22';
+                } else if (isFinTemporal) {
+                  moduleTag = 'Module A (Financial & Temporal)';
+                  moduleColor = '#3b82f6';
+                } else if (isIF) {
+                  moduleTag = 'Isolation Forest';
+                  moduleColor = '#c06090';
+                } else if (isVisual) {
+                  moduleTag = 'Module B (Visual Forensics)';
+                  moduleColor = '#5090c0';
+                } else if (isSatellite) {
+                  moduleTag = 'Module C (Sentinel-2 EO)';
+                  moduleColor = '#2aa898';
+                }
+
+                const sevKey = (finding.severity || 'LOW').toLowerCase();
+                const markerClass = (sevKey === 'critical' || sevKey === 'high') ? 'finding-high' : (sevKey === 'moderate' ? 'finding-moderate' : 'finding-low');
+
                 return (<div className="finding" key={`${finding.title}-${index}`}>
-                    <div className={`finding-marker finding-${finding.severity.toLowerCase()}`}>
+                    <div className={`finding-marker ${markerClass}`}>
                       <AlertTriangle size={14}/>
                     </div>
                     <div className="min-w-0">

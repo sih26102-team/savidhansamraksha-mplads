@@ -1,5 +1,5 @@
 """
-CivicShield Machine Learning Risk & Anomaly Inference Engine — Phase 1 (Isolation Forest)
+Savidhan Samraksha Machine Learning Risk & Anomaly Inference Engine — Phase 1 (Isolation Forest)
 Author: Kousic (ML Engine Lead)
 
 Architecture:
@@ -54,6 +54,34 @@ except ImportError:
     except ImportError:
         analyze_satellite_ground_change = None
         _SATELLITE_AVAILABLE = False
+
+# Module A import (Financial & Temporal Engine — Section 4 Spec)
+try:
+    from financial_temporal_engine import FinancialTemporalEngine
+    _MODULE_A_AVAILABLE = True
+except ImportError:
+    try:
+        from ml_engine.financial_temporal_engine import FinancialTemporalEngine
+        _MODULE_A_AVAILABLE = True
+    except ImportError:
+        FinancialTemporalEngine = None
+        _MODULE_A_AVAILABLE = False
+
+_module_a_engine = FinancialTemporalEngine() if _MODULE_A_AVAILABLE else None
+
+# Fusion & Decision Support Layer import
+try:
+    from fusion_engine import FusionEngine
+    _FUSION_AVAILABLE = True
+except ImportError:
+    try:
+        from ml_engine.fusion_engine import FusionEngine
+        _FUSION_AVAILABLE = True
+    except ImportError:
+        FusionEngine = None
+        _FUSION_AVAILABLE = False
+
+_fusion_engine = FusionEngine() if _FUSION_AVAILABLE else None
 
 # ---------------------------------------------------------------------------
 # Weights & configuration
@@ -614,6 +642,22 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
         "evidence_integrity_penalty_multiplier", 18.0
     )
 
+    # ---- Layer 1b: Module A Financial & Temporal Engine (8 Detectors) ------
+    mod_a_result = None
+    if _MODULE_A_AVAILABLE and _module_a_engine:
+        try:
+            peer_projects = project.get("peerProjects") or project.get("peer_projects")
+            hist_projects = project.get("historicalProjects") or project.get("historical_projects")
+            mod_a_result = _module_a_engine.evaluate_financial_temporal(
+                project,
+                peer_projects=peer_projects,
+                historical_projects=hist_projects,
+            )
+            if mod_a_result and mod_a_result.get("score", 0.0) > 0.0:
+                heuristic_penalty = max(heuristic_penalty, mod_a_result["score"])
+        except Exception as mod_a_err:
+            mod_a_result = None
+
     heuristic_score = min(100.0, heuristic_penalty)
 
     # ---- Layer 2: Isolation Forest score (0–100) ---------------------------
@@ -759,30 +803,113 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
         })
 
 
+    # Append Module A refined findings
+    if mod_a_result and mod_a_result.get("findings"):
+        existing_titles = {f["title"] for f in findings}
+        for mf in mod_a_result["findings"]:
+            if mf.get("title") not in existing_titles:
+                findings.append(mf)
+                existing_titles.add(mf.get("title"))
+
     # Append satellite spectral findings (Phase 3)
     for sf in sat_result.get("findings", []):
         if sf.get("title") not in {f["title"] for f in findings}:
             findings.append(sf)
 
     # ---- Module scores (backward-compatible keys) -------------------------
+    fin_mod_score = min(
+        100.0,
+        max(
+            round(heuristic_score * 1.05, 1),
+            mod_a_result.get("score", 0.0) if mod_a_result else 0.0
+        )
+    )
+
+    # ---- Master Fusion & Decision Support Layer (Master Ref Spec) ----------
+    fusion_res = None
+    if _FUSION_AVAILABLE and _fusion_engine:
+        # Module B findings
+        mod_b_findings = []
+        if features["evidenceIntegrityScore"] < 0.8:
+            mod_b_findings.append({
+                "module": "DUPLICATE_SEQUENTIAL_PHOTO" if project.get("photoDuplicateCount") else "MISSING_EXIF_METADATA",
+                "severity": "HIGH" if features["evidenceIntegrityScore"] < 0.5 else "MODERATE",
+                "title": "Geotagged Photographic Discrepancies"
+            })
+        if project.get("photoDuplicateCount"):
+            mod_b_findings.append({
+                "module": "DUPLICATE_SEQUENTIAL_PHOTO",
+                "severity": "HIGH",
+                "title": "Duplicate Milestone Photo Detected"
+            })
+
+        hist_pool = project.get("peerProjects") or project.get("historicalProjects") or []
+        feat_exps = _detector.explain_project(project) if if_score > 75.0 else []
+        sanctioned_amt = float(project.get("sanctionedAmount") or project.get("sanctioned_amount") or 1.0)
+        exp_incurred = float(project.get("expenditureIncurred") or project.get("expenditure_incurred") or 0.0)
+
+        fusion_res = _fusion_engine.fuse_modules(
+            module_a_score=fin_mod_score,
+            module_a_findings=mod_a_result.get("findings", []) if mod_a_result else [],
+            module_b_score=visual_score,
+            module_b_status="AVAILABLE" if features.get("evidenceIntegrityScore", 1.0) < 1.0 or project.get("hasPhotos") else "INCONCLUSIVE",
+            module_b_findings=mod_b_findings,
+            module_c_score=float(sat_score) if sat_score is not None else None,
+            module_c_status=sat_status or "AVAILABLE",
+            module_c_findings=sat_result.get("findings", []),
+            isolation_forest_score=if_score,
+            isolation_forest_status=if_status,
+            sanctioned_amount=sanctioned_amt,
+            expenditure_incurred=exp_incurred,
+            project=project,
+            project_history=hist_pool,
+            features=features,
+            feature_explanations=feat_exps,
+        )
+
+    if fusion_res:
+        # Fused decision values
+        risk_score = fusion_res["fusedScore"]
+        risk_level = fusion_res["riskLevel"]
+        alert_category = fusion_res["alertCategory"]
+        actionable_summary = fusion_res["actionableSummary"]
+
+        # Append fusion findings (corroboration, collusion override, novel fraud)
+        existing_titles = {f["title"] for f in findings}
+        for ff in fusion_res.get("fusionFindings", []):
+            if ff.get("title") not in existing_titles:
+                findings.append(ff)
+                existing_titles.add(ff.get("title"))
+    else:
+        alert_category = "RED" if risk_score >= 70.0 else ("YELLOW" if risk_score >= 40.0 else "GREEN")
+        actionable_summary = "Evaluated via standard multi-module model."
+
     return {
         "workId": project.get("workId", "UNKNOWN"),
         "riskScore": risk_score,
         "riskLevel": risk_level,
+        "alertCategory": alert_category,
+        "actionableSummary": actionable_summary,
         # Legacy key — still returned for existing consumers; equals IF score
         "anomalyConfidence": round(if_score / 100.0, 3),
         "features": features,
         "findings": findings,
         "moduleScores": {
-            "financialTemporalScore": min(
-                100.0, round(heuristic_score * 1.05, 1)
-            ),
+            "financialTemporalScore": fin_mod_score,
             "visualSpatialScore": min(
                 100.0,
                 round((1.0 - features["evidenceIntegrityScore"]) * 80.0 + 15.0, 1),
             ),
             "satelliteScore": round(float(sat_score), 1) if sat_score is not None else None,
         },
+        "financialTemporalModule": {
+            "score": mod_a_result.get("score", 0.0) if mod_a_result else 0.0,
+            "status": mod_a_result.get("status", "NORMAL") if mod_a_result else "NORMAL",
+            "findingsCount": len(mod_a_result.get("findings", [])) if mod_a_result else 0,
+            "detectorResults": mod_a_result.get("detectorResults", {}) if mod_a_result else {},
+        },
+        "fusion": fusion_res,
+        "fusionSummary": fusion_res.get("telemetry", {}) if fusion_res else {},
         # NEW keys (additive — do not break any existing schema)
         "isolationForestScore": if_score,
         "isolationForestStatus": if_status,
@@ -814,7 +941,7 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="CivicShield ML Risk Inference Engine — Phase 1 (Isolation Forest)"
+        description="Savidhan Samraksha ML Risk Inference Engine — Phase 1 (Isolation Forest)"
     )
     parser.add_argument(
         "--predict", type=str, help="Path to project JSON file for inference"
