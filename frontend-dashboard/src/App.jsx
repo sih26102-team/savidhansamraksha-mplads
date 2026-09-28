@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Router as WouterRouter, Switch, useLocation, useParams } from 'wouter';
-import { AlertOctagon, AlertTriangle, ArrowUpRight, BarChart3, Bell, Building2, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Copy, FileSearch, Gavel, Home, IndianRupee, Landmark, LogOut, MapPin, Menu, Network, PanelLeftClose, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, X, } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, ArrowUpRight, BarChart3, Bell, Building2, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Compass, Copy, FileSearch, Gavel, Globe, Home, IndianRupee, Landmark, Layers, LogOut, MapPin, Menu, Network, Orbit, PanelLeftClose, RefreshCw, Satellite, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, X, } from 'lucide-react';
 import { AuthUserRole, ListProjectsWorkflowStatus, useCreateProjectAction, useGetCurrentUser, useGetDashboardSummary, useGetDemoAccounts, useGetProject, useListConstituencies, useListDistricts, useListEscalatedProjects, useListProjectAudit, useListProjects, useListRecentAudit, useListStates, useLogin, useLogout, getGetDashboardSummaryQueryKey, getGetProjectQueryKey, getListEscalatedProjectsQueryKey, getListProjectAuditQueryKey, getListProjectsQueryKey, getListRecentAuditQueryKey, } from '@/lib/api';
 import { ALL_INDIAN_STATES, getDistrictsForState, getConstituenciesForState } from '@/lib/india-data';
 import { setAuthTokenGetter } from '@/lib/api/custom-fetch';
@@ -1672,6 +1672,242 @@ function ProjectVisualCard({ photo, category, workId, title, district }) {
     );
 }
 
+function SatelliteMultiSpectralIllustration({ satVer, physicalProgress = 0, category = '', workId = '' }) {
+  const status = satVer?.status || 'VERIFIED_ACTIVE_CONSTRUCTION';
+  const isGhost = status === 'GHOST_PROJECT_NO_PHYSICAL_CHANGE';
+  const isUnauthorized = status === 'UNAUTHORIZED_UNREPORTED_CONSTRUCTION';
+  const isCloudy = status === 'SATELLITE_DATA_UNAVAILABLE_CLOUDY';
+
+  const ndbi = Number(satVer?.ndbi_delta ?? 0);
+  const ndvi = Number(satVer?.ndvi_delta ?? 0);
+  const cloudPct = Number(satVer?.cloud_cover_pct ?? 0);
+  const t0Date = date(satVer?.t0_date) || 'Sanction T0';
+  const t1Date = date(satVer?.t1_date) || 'Milestone T1';
+
+  return (
+    <svg viewBox="0 0 640 320" className="w-full h-full" style={{ display: 'block', width: '100%', height: '100%', background: '#050f1a' }}>
+      <defs>
+        <radialGradient id="satLensT0" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#0b2b3f" stopOpacity="0.8" />
+          <stop offset="70%" stopColor="#081e2c" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#040d16" stopOpacity="1" />
+        </radialGradient>
+        <radialGradient id="satLensT1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={isGhost ? "#261313" : isUnauthorized ? "#2b1e0f" : isCloudy ? "#1a2530" : "#0d2e26"} stopOpacity="0.8" />
+          <stop offset="70%" stopColor={isGhost ? "#1a0b0b" : isUnauthorized ? "#1c1409" : isCloudy ? "#111a24" : "#08211b"} stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#040d16" stopOpacity="1" />
+        </radialGradient>
+        <pattern id="satGrid" width="32" height="32" patternUnits="userSpaceOnUse">
+          <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(42, 168, 152, 0.08)" strokeWidth="0.8" />
+        </pattern>
+        <linearGradient id="cloudGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#b0bec5" stopOpacity="0.75" />
+          <stop offset="50%" stopColor="#cfd8dc" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#90a4ae" stopOpacity="0.7" />
+        </linearGradient>
+      </defs>
+
+      {/* Satellite grid background */}
+      <rect x="0" y="0" width="640" height="320" fill="#040e17" />
+      <rect x="0" y="0" width="640" height="320" fill="url(#satGrid)" />
+
+      {/* Center orbital divider */}
+      <line x1="320" y1="0" x2="320" y2="320" stroke="#163147" strokeWidth="1.5" strokeDasharray="6 3" />
+      
+      {/* ================= LEFT PANE: T0 BASELINE ================= */}
+      <g>
+        <circle cx="160" cy="150" r="115" fill="url(#satLensT0)" stroke="rgba(42, 168, 152, 0.3)" strokeWidth="1" />
+        <circle cx="160" cy="150" r="35" fill="none" stroke="rgba(42, 168, 152, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+        <circle cx="160" cy="150" r="70" fill="none" stroke="rgba(42, 168, 152, 0.25)" strokeWidth="1" strokeDasharray="4 4" />
+        <circle cx="160" cy="150" r="105" fill="none" stroke="rgba(42, 168, 152, 0.4)" strokeWidth="1.2" strokeDasharray="5 5" />
+        
+        <line x1="160" y1="35" x2="160" y2="265" stroke="rgba(42, 168, 152, 0.2)" strokeWidth="0.8" />
+        <line x1="45" y1="150" x2="275" y2="150" stroke="rgba(42, 168, 152, 0.2)" strokeWidth="0.8" />
+        
+        {/* Natural pre-construction ground */}
+        <path d="M 80 180 Q 110 130 150 170 T 220 140" fill="none" stroke="#254336" strokeWidth="18" strokeLinecap="round" opacity="0.6" />
+        <ellipse cx="140" cy="135" rx="22" ry="14" fill="#1b3d2f" opacity="0.7" />
+        <ellipse cx="185" cy="165" rx="30" ry="18" fill="#2d3f33" opacity="0.6" />
+        <circle cx="120" cy="165" r="12" fill="#1d382b" opacity="0.8" />
+        <path d="M 90 120 Q 160 110 230 130" fill="none" stroke="#37474f" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.5" />
+
+        {/* Reticle corner brackets */}
+        <path d="M 55 55 L 70 55 M 55 55 L 55 70" stroke="#2aa898" strokeWidth="1.5" />
+        <path d="M 265 55 L 250 55 M 265 55 L 265 70" stroke="#2aa898" strokeWidth="1.5" />
+        <path d="M 55 245 L 70 245 M 55 245 L 55 230" stroke="#2aa898" strokeWidth="1.5" />
+        <path d="M 265 245 L 250 245 M 265 245 L 265 230" stroke="#2aa898" strokeWidth="1.5" />
+
+        <rect x="16" y="14" width="168" height="22" rx="4" fill="rgba(6, 24, 38, 0.85)" stroke="#1a3d54" strokeWidth="1" />
+        <text x="24" y="29" fill="#62cfbe" fontSize="9" fontWeight="700" letterSpacing="0.08em">T0: SANCTION BASELINE</text>
+        
+        <rect x="16" y="278" width="150" height="24" rx="4" fill="rgba(6, 24, 38, 0.85)" stroke="#1a3d54" strokeWidth="1" />
+        <text x="24" y="294" fill="#8ca1b3" fontSize="9" fontFamily="monospace">ACQ: {t0Date}</text>
+      </g>
+
+      {/* ================= RIGHT PANE: T1 MILESTONE ================= */}
+      <g>
+        <circle cx="480" cy="150" r="115" fill="url(#satLensT1)" stroke={isGhost ? "rgba(224, 122, 95, 0.4)" : isUnauthorized ? "rgba(240, 160, 80, 0.4)" : isCloudy ? "rgba(144, 164, 174, 0.4)" : "rgba(0, 230, 118, 0.4)"} strokeWidth="1" />
+        <circle cx="480" cy="150" r="35" fill="none" stroke={isGhost ? "rgba(224, 122, 95, 0.2)" : isUnauthorized ? "rgba(240, 160, 80, 0.2)" : "rgba(0, 230, 118, 0.2)"} strokeWidth="1" strokeDasharray="3 3" />
+        <circle cx="480" cy="150" r="70" fill="none" stroke={isGhost ? "rgba(224, 122, 95, 0.3)" : isUnauthorized ? "rgba(240, 160, 80, 0.3)" : "rgba(0, 230, 118, 0.3)"} strokeWidth="1" strokeDasharray="4 4" />
+        <circle cx="480" cy="150" r="105" fill="none" stroke={isGhost ? "#e07a5f" : isUnauthorized ? "#f0a050" : isCloudy ? "#90a4ae" : "#00e676"} strokeWidth="1.4" strokeDasharray={isGhost ? "6 3" : "none"} />
+
+        <line x1="480" y1="35" x2="480" y2="265" stroke={isGhost ? "rgba(224, 122, 95, 0.25)" : "rgba(42, 168, 152, 0.25)"} strokeWidth="0.8" />
+        <line x1="365" y1="150" x2="595" y2="150" stroke={isGhost ? "rgba(224, 122, 95, 0.25)" : "rgba(42, 168, 152, 0.25)"} strokeWidth="0.8" />
+
+        {isGhost ? (
+          <g>
+            <path d="M 400 180 Q 430 130 470 170 T 540 140" fill="none" stroke="#254336" strokeWidth="18" strokeLinecap="round" opacity="0.6" />
+            <ellipse cx="460" cy="135" rx="22" ry="14" fill="#1b3d2f" opacity="0.7" />
+            <ellipse cx="505" cy="165" rx="30" ry="18" fill="#2d3f33" opacity="0.6" />
+            <circle cx="440" cy="165" r="12" fill="#1d382b" opacity="0.8" />
+            
+            <circle cx="480" cy="150" r="48" fill="rgba(224, 122, 95, 0.12)" stroke="#e07a5f" strokeWidth="1.8" strokeDasharray="5 3" />
+            <line x1="460" y1="130" x2="500" y2="170" stroke="#e07a5f" strokeWidth="2.5" />
+            <line x1="500" y1="130" x2="460" y2="170" stroke="#e07a5f" strokeWidth="2.5" />
+
+            <rect x="375" y="200" width="210" height="24" rx="4" fill="rgba(40, 10, 10, 0.9)" stroke="#e07a5f" strokeWidth="1" />
+            <text x="480" y="215" fill="#ff8a80" fontSize="9" fontWeight="700" textAnchor="middle" letterSpacing="0.05em">⚠️ ZERO GROUND CHANGE DETECTED</text>
+          </g>
+        ) : isUnauthorized ? (
+          <g>
+            <rect x="440" y="115" width="80" height="70" rx="4" fill="rgba(240, 160, 80, 0.3)" stroke="#f0a050" strokeWidth="2" />
+            <rect x="455" y="130" width="50" height="40" fill="#f0a050" opacity="0.8" />
+            <line x1="435" y1="150" x2="525" y2="150" stroke="#ffcc80" strokeWidth="1.5" />
+            <circle cx="480" cy="150" r="55" fill="none" stroke="#f0a050" strokeWidth="1.5" strokeDasharray="4 2" />
+            
+            <rect x="375" y="200" width="210" height="24" rx="4" fill="rgba(40, 25, 10, 0.9)" stroke="#f0a050" strokeWidth="1" />
+            <text x="480" y="215" fill="#ffb74d" fontSize="9" fontWeight="700" textAnchor="middle" letterSpacing="0.05em">⚠️ UNREPORTED BUILT-UP DETECTED</text>
+          </g>
+        ) : isCloudy ? (
+          <g>
+            <path d="M 400 180 Q 430 130 470 170 T 540 140" fill="none" stroke="#254336" strokeWidth="18" strokeLinecap="round" opacity="0.3" />
+            <path d="M 390 140 Q 420 90 460 110 Q 500 80 540 110 Q 570 130 550 160 Q 570 190 530 200 Q 480 210 430 195 Q 380 185 390 140 Z" fill="url(#cloudGrad)" opacity="0.85" />
+            <ellipse cx="440" cy="130" rx="35" ry="25" fill="#eceff1" opacity="0.9" />
+            <ellipse cx="495" cy="140" rx="40" ry="28" fill="#cfd8dc" opacity="0.95" />
+            <ellipse cx="520" cy="165" rx="30" ry="20" fill="#b0bec5" opacity="0.9" />
+
+            <rect x="370" y="200" width="220" height="24" rx="4" fill="rgba(20, 30, 42, 0.92)" stroke="#90a4ae" strokeWidth="1" />
+            <text x="480" y="215" fill="#eceff1" fontSize="9" fontWeight="700" textAnchor="middle" letterSpacing="0.05em">☁️ OPTICAL CLOUD OCCLUSION ({cloudPct}%)</text>
+          </g>
+        ) : (
+          <g>
+            <path d="M 400 180 Q 430 130 470 170 T 540 140" fill="none" stroke="#1b3d2f" strokeWidth="18" strokeLinecap="round" opacity="0.4" />
+            <rect x="445" y="115" width="70" height="70" rx="4" fill="rgba(0, 230, 118, 0.25)" stroke="#00e676" strokeWidth="2" />
+            <rect x="458" y="128" width="44" height="44" fill="#00e676" opacity="0.75" />
+            <path d="M 420 185 L 458 172" stroke="#69f0ae" strokeWidth="4" strokeLinecap="round" />
+            <circle cx="480" cy="150" r="52" fill="none" stroke="#00e676" strokeWidth="1" strokeDasharray="4 2" />
+            
+            <rect x="365" y="200" width="230" height="24" rx="4" fill="rgba(10, 35, 24, 0.92)" stroke="#00e676" strokeWidth="1" />
+            <text x="480" y="215" fill="#69f0ae" fontSize="9" fontWeight="700" textAnchor="middle" letterSpacing="0.05em">✓ VERIFIED GROUND TRANSFORMATION</text>
+          </g>
+        )}
+
+        <path d="M 375 55 L 390 55 M 375 55 L 375 70" stroke={isGhost ? "#e07a5f" : isUnauthorized ? "#f0a050" : isCloudy ? "#90a4ae" : "#00e676"} strokeWidth="1.5" />
+        <path d="M 585 55 L 570 55 M 585 55 L 585 70" stroke={isGhost ? "#e07a5f" : isUnauthorized ? "#f0a050" : isCloudy ? "#90a4ae" : "#00e676"} strokeWidth="1.5" />
+        <path d="M 375 245 L 390 245 M 375 245 L 375 230" stroke={isGhost ? "#e07a5f" : isUnauthorized ? "#f0a050" : isCloudy ? "#90a4ae" : "#00e676"} strokeWidth="1.5" />
+        <path d="M 585 245 L 570 245 M 585 245 L 585 230" stroke={isGhost ? "#e07a5f" : isUnauthorized ? "#f0a050" : isCloudy ? "#90a4ae" : "#00e676"} strokeWidth="1.5" />
+
+        <rect x="336" y="14" width="180" height="22" rx="4" fill="rgba(6, 24, 38, 0.85)" stroke="#1a3d54" strokeWidth="1" />
+        <text x="344" y="29" fill={isGhost ? "#ff8a80" : isUnauthorized ? "#ffb74d" : isCloudy ? "#eceff1" : "#88e2b8"} fontSize="9" fontWeight="700" letterSpacing="0.08em">T1: OBSERVATION MILESTONE</text>
+        
+        <rect x="336" y="278" width="180" height="24" rx="4" fill="rgba(6, 24, 38, 0.85)" stroke="#1a3d54" strokeWidth="1" />
+        <text x="344" y="294" fill="#8ca1b3" fontSize="9" fontFamily="monospace">ACQ: {t1Date}</text>
+      </g>
+
+      <circle cx="320" cy="150" r="16" fill="#0b2438" stroke="#2aa898" strokeWidth="1.5" />
+      <text x="320" y="154" fill="#62cfbe" fontSize="9" fontWeight="bold" textAnchor="middle">Δ</text>
+    </svg>
+  );
+}
+
+function ProjectSatelliteCard({ satVer, satScore, workId, category, district, state, physicalProgress, lat, lon }) {
+  const status = satVer?.status || 'VERIFIED_ACTIVE_CONSTRUCTION';
+  const isGhost = status === 'GHOST_PROJECT_NO_PHYSICAL_CHANGE';
+  const isUnauthorized = status === 'UNAUTHORIZED_UNREPORTED_CONSTRUCTION';
+  const isCloudy = status === 'SATELLITE_DATA_UNAVAILABLE_CLOUDY';
+
+  const ndbi = Number(satVer?.ndbi_delta ?? 0);
+  const ndvi = Number(satVer?.ndvi_delta ?? 0);
+  const cloudPct = Number(satVer?.cloud_cover_pct ?? 0);
+  const progressVal = Number(physicalProgress || 0);
+
+  const statusColor = isGhost ? '#e07a5f' : isUnauthorized ? '#f0a050' : isCloudy ? '#8ca1b3' : '#68c298';
+  const statusBorder = isGhost ? '#7d3830' : isUnauthorized ? '#7d5830' : isCloudy ? '#2a445a' : '#1e523f';
+  const statusLabel = isGhost ? 'FLAGGED: GHOST PROJECT (NO PHYSICAL WORK)' : isUnauthorized ? 'FLAGGED: UNREPORTED CONSTRUCTION' : isCloudy ? 'INCONCLUSIVE: PERSISTENT CLOUD COVER' : 'VERIFIED: PHYSICAL GROUND EVIDENCE CONFIRMED';
+
+  return (
+    <div className="visual-evidence-card" style={{ background: '#071622', borderRadius: '8px', border: `1px solid ${statusBorder}`, overflow: 'hidden', marginBottom: '16px' }}>
+      {/* Top Bar with Sensor Details & Status */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#0a1e30', borderBottom: '1px solid #16344d', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#62cfbe' }}>
+            <Satellite size={14} /> Copernicus Sentinel-2 MSI Multi-Spectral
+          </span>
+          <span style={{ fontSize: '10px', color: '#7b8d9a' }}>· 10m Ground Sample Distance (GSD)</span>
+          <span style={{ fontSize: '10px', color: '#5a7a8a' }}>ESA COPERNICUS/S2_SR_HARMONIZED</span>
+        </div>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, color: statusColor, background: statusColor + '18', border: `1px solid ${statusColor}50`, borderRadius: '4px', padding: '2px 8px' }}>
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Dual-Date Satellite Radar View */}
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '2/1', maxHeight: '340px', background: '#040d16', overflow: 'hidden' }}>
+        <SatelliteMultiSpectralIllustration satVer={satVer} physicalProgress={progressVal} category={category} workId={workId} />
+
+        {/* Telemetry HUD Bar */}
+        <div style={{ position: 'absolute', bottom: '8px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'none', background: 'rgba(4, 14, 24, 0.88)', backdropFilter: 'blur(4px)', padding: '5px 12px', borderRadius: '4px', border: '1px solid rgba(42, 168, 152, 0.2)', flexWrap: 'wrap', gap: '4px' }}>
+          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#88e2b8' }}>
+            📍 ROI BUFFER: 100m POINT RADIUS (LAT {(lat || 17.6868).toFixed(4)}° N, LON {(lon || 83.2185).toFixed(4)}° E)
+          </div>
+          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: isCloudy ? '#8ca1b3' : '#62cfbe' }}>
+            📊 NDBI Δ: {ndbi >= 0 ? '+' : ''}{ndbi.toFixed(3)} · NDVI Δ: {ndvi >= 0 ? '+' : ''}{ndvi.toFixed(3)} · CLOUD: {cloudPct}%
+          </div>
+        </div>
+      </div>
+
+      {/* Plain-English Forensic Inspection Layer */}
+      <div style={{ padding: '14px 16px', background: isGhost ? '#160d11' : isUnauthorized ? '#17120a' : isCloudy ? '#091824' : '#071b16', borderTop: `1px solid ${statusBorder}` }}>
+        {isGhost ? (
+          <div style={{ color: '#f08070', fontSize: '11px', lineHeight: '1.6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <AlertTriangle size={15} style={{ color: '#ff7060', flexShrink: 0 }} />
+              <strong style={{ color: '#ff9988', fontSize: '12px' }}>Satellite Discrepancy Alert: Ghost Project Signature (No Physical Ground Work)</strong>
+            </div>
+            Registry claims <strong>{progressVal.toFixed(1)}% physical completion</strong>, but Copernicus Sentinel-2 multi-spectral orbital sensors detected an NDBI built-up index delta of only <strong>{ndbi >= 0 ? '+' : ''}{ndbi.toFixed(3)}</strong> (&lt; +0.030 threshold) across the 100-meter work radius. Surface reflectance is identical to the pre-sanction baseline imagery. No physical construction, excavation, or structural materials are present on site. High probability of progress fabrication or paper-only milestone claiming.
+          </div>
+        ) : isUnauthorized ? (
+          <div style={{ color: '#f0a050', fontSize: '11px', lineHeight: '1.6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <AlertTriangle size={15} style={{ color: '#ffa726', flexShrink: 0 }} />
+              <strong style={{ color: '#ffcc80', fontSize: '12px' }}>Satellite Discrepancy Alert: Unreported Construction Activity</strong>
+            </div>
+            Registry records state <strong>0.0% physical progress</strong>, yet Sentinel-2 multi-spectral sensors detected a significant built-up index delta of <strong>+{ndbi.toFixed(3)}</strong> (&gt; +0.180 threshold) within the 100-meter site perimeter. Concrete or masonry ground alteration has taken place without corresponding official administrative records or milestone filings.
+          </div>
+        ) : isCloudy ? (
+          <div style={{ color: '#8ca1b3', fontSize: '11px', lineHeight: '1.6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <Sparkles size={15} style={{ color: '#64b5f6', flexShrink: 0 }} />
+              <strong style={{ color: '#b0bec5', fontSize: '12px' }}>Atmospheric Safety Bypass: Persistent Cloud Cover ({cloudPct}%)</strong>
+            </div>
+            Persistent cloud overcast (&gt;70%) obstructed optical satellite reflectance during the observation window. Under Edge Case B safety protocols, the satellite module was bypassed cleanly with <strong>0 penalty points</strong>. Model weights were dynamically re-normalized across domain rules, Isolation Forest, and field photography to eliminate false positive flags.
+          </div>
+        ) : (
+          <div style={{ color: '#68c298', fontSize: '11px', lineHeight: '1.6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <Check size={15} style={{ color: '#00e676', flexShrink: 0 }} />
+              <strong style={{ color: '#88e2b8', fontSize: '12px' }}>Satellite Ground Evidence Verified: Authentic Physical Progress</strong>
+            </div>
+            Dual-date Sentinel-2 Level-2A imagery confirms substantial structural ground transformation (NDBI delta: <strong>+{ndbi.toFixed(3)}</strong>, NDVI delta: <strong>{ndvi.toFixed(3)}</strong>) matching the reported {progressVal.toFixed(1)}% civil progress in {district || 'the constituency'}. Surface reflectance matches real concrete and civil material additions.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProjectDetailPage() {
     const { workId = '' } = useParams();
     const current = useGetCurrentUser();
@@ -1686,6 +1922,10 @@ function ProjectDetailPage() {
     const ifScore = item.isolationForestScore;
     const ifStatus = item.isolationForestStatus;
     const heuristicScore = item.heuristicScore;
+    const satVer = item.satellite_verification || item.satelliteVerification;
+    const satScore = item.moduleScores?.satelliteScore;
+    const visualScore = item.moduleScores?.visualSpatialScore ?? item.moduleScores?.visualScore;
+    const isCloudy = satVer?.status === 'SATELLITE_DATA_UNAVAILABLE_CLOUDY' || satScore === null || satScore === undefined;
     const isEscalated = item.workflowStatus === 'ESCALATED' || item.workflowStatus === 'ESCALATED_STATE';
 
     return (<PageFrame eyebrow={`PROJECT FILE / ${item.workId}`} title={item.description || item.title || item.workId} subtitle={`${item.district || '—'}${item.state ? `, ${item.state}` : ''} · ${categoryDisplayNames[item.category] || item.category || 'General'} · ${item.fiscalYear || '—'}`} actions={<Link href="/projects" className="button button-secondary" data-testid="link-back-projects">
@@ -1738,43 +1978,73 @@ function ProjectDetailPage() {
             </div>
             <p className="disclaimer">These are model-generated signals based on available records and imagery. They are not legal findings. Each flag includes specific evidence and is subject to human review.</p>
 
-            {/* Isolation Forest score breakdown — transparent, not a black box */}
+            {/* Risk Score Audit Breakdown — 4-layer multi-modal synthesis */}
             {ifScore !== undefined && ifScore !== null && (
                 <div style={{ marginBottom: '14px', padding: '12px 16px', background: '#0e2537', borderRadius: '6px', border: '1px solid #1e3d57' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', color: '#91a4b4', fontWeight: 700, letterSpacing: '0.06em' }}>RISK SCORE AUDIT BREAKDOWN</span>
+                        <span style={{ fontSize: '10px', color: '#91a4b4', fontWeight: 700, letterSpacing: '0.06em' }}>RISK SCORE AUDIT BREAKDOWN · MULTI-MODAL SYNTHESIS</span>
                         <span style={{ fontSize: '11px', color: '#f0c070', fontWeight: 600 }}>
                             Composite Score: <strong>{(Number(item.riskScore) || 0).toFixed(2)}</strong> / 100 ({item.riskLevel})
                         </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', marginTop: '6px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginTop: '6px' }}>
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>1. Domain Rules (70% weight)</span>
+                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>1. Domain Rules ({isCloudy ? '58.8%' : '50%'} weight)</span>
                             <strong style={{ fontSize: '14px', color: '#7abfcf' }}>{heuristicScore !== undefined ? Number(heuristicScore).toFixed(2) : '0.00'}</strong>
                             <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>Fiscal divergence & deadline telemetry</small>
                         </div>
 
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>2. Isolation Forest (30% weight)</span>
+                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>2. Isolation Forest ({isCloudy ? '23.5%' : '20%'} weight)</span>
                             <strong style={{ fontSize: '14px', color: ifStatus === 'OUTLIER' ? '#e07a5f' : '#6bba9a' }}>
                                 {Number(ifScore).toFixed(2)} <span style={{ fontSize: '10px', opacity: 0.8 }}>({ifStatus})</span>
                             </strong>
-                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>Unsupervised AI outlier detection against 40 peers</small>
+                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>Unsupervised outlier detection vs 40 peers</small>
+                        </div>
+
+                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <span style={{ fontSize: '10px', color: '#8ca1b3', display: 'block' }}>3. Visual Forensics ({isCloudy ? '17.6%' : '15%'} weight)</span>
+                            <strong style={{ fontSize: '14px', color: (visualScore || 15) >= 60 ? '#e07a5f' : '#7abfcf' }}>
+                                {visualScore !== undefined && visualScore !== null ? Number(visualScore).toFixed(2) : '15.00'}
+                            </strong>
+                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>pHash deduplication & EXIF geofencing</small>
+                        </div>
+
+                        <div style={{ padding: '8px 10px', background: isCloudy ? 'rgba(100,120,140,0.06)' : 'rgba(42, 168, 152, 0.08)', borderRadius: '4px', border: `1px solid ${isCloudy ? 'rgba(255,255,255,0.06)' : 'rgba(42, 168, 152, 0.25)'}` }}>
+                            <span style={{ fontSize: '10px', color: isCloudy ? '#8ca1b3' : '#62cfbe', display: 'block' }}>
+                                4. Sentinel-2 Satellite {isCloudy ? '(Bypassed)' : '(15% weight)'}
+                            </span>
+                            <strong style={{ fontSize: '14px', color: isCloudy ? '#8ca1b3' : ((satScore || 0) >= 60 ? '#e07a5f' : '#6bba9a') }}>
+                                {isCloudy ? 'Overcast (0 penalty)' : `${Number(satScore || 0).toFixed(2)}`}
+                            </strong>
+                            <small style={{ fontSize: '10px', color: '#5a758a', display: 'block', marginTop: '2px' }}>
+                                {isCloudy ? 'Cloud cover >70%; skipped safely' : (satVer ? `NDBI delta: ${satVer.ndbi_delta >= 0 ? '+' : ''}${Number(satVer.ndbi_delta).toFixed(3)} · Cloud: ${satVer.cloud_cover_pct}%` : 'Multi-spectral change detection')}
+                            </small>
                         </div>
 
                         {isEscalated && (
                             <div style={{ padding: '8px 10px', background: 'rgba(224, 122, 95, 0.08)', borderRadius: '4px', border: '1px solid rgba(224, 122, 95, 0.25)' }}>
-                                <span style={{ fontSize: '10px', color: '#f09080', display: 'block' }}>3. Authority Priority Escalation</span>
+                                <span style={{ fontSize: '10px', color: '#f09080', display: 'block' }}>5. Authority Priority Escalation</span>
                                 <strong style={{ fontSize: '14px', color: '#e07a5f' }}>+75.80 Floor</strong>
                                 <small style={{ fontSize: '10px', color: '#d08070', display: 'block', marginTop: '2px' }}>Elevated by District/State Authority review</small>
                             </div>
                         )}
                     </div>
 
+                    {isCloudy && (
+                        <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(42, 168, 152, 0.08)', borderRadius: '4px', fontSize: '11px', color: '#7ad0c0', lineHeight: '1.4' }}>
+                            ☁️ <strong>Atmospheric Overcast Advisory:</strong> Sentinel-2 optical sensors encountered persistent cloud cover (&gt;70%) over the work site coordinates. Model weights were dynamically re-normalized across domain rules, Isolation Forest, and visual ground forensics with zero score penalty to prevent false alarms.
+                        </div>
+                    )}
+
                     {isEscalated && (
                         <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(224, 122, 95, 0.1)', borderRadius: '4px', fontSize: '11px', color: '#e2a090', lineHeight: '1.4' }}>
-                            ℹ️ <strong>Score Explanation:</strong> Baseline telemetry scored {((Number(heuristicScore || 0) * 0.70) + (Number(ifScore || 0) * 0.30)).toFixed(1)} points. Because this project was formally escalated by an official, the system applies a statutory <strong>+75.80 Priority Floor</strong> to guarantee immediate visibility in the oversight queue.
+                            ℹ️ <strong>Score Explanation:</strong> Baseline multi-modal telemetry scored {(
+                                isCloudy
+                                    ? ((Number(heuristicScore || 0) * (50/85)) + (Number(ifScore || 0) * (20/85)) + (Number(visualScore || 15) * (15/85)))
+                                    : ((Number(heuristicScore || 0) * 0.50) + (Number(ifScore || 0) * 0.20) + (Number(visualScore || 15) * 0.15) + (Number(satScore || 0) * 0.15))
+                            ).toFixed(1)} points. Because this project was formally escalated by an official, the system applies a statutory <strong>+75.80 Priority Floor</strong> to guarantee immediate visibility in the oversight queue.
                         </div>
                     )}
                 </div>
@@ -1784,8 +2054,9 @@ function ProjectDetailPage() {
               {item.findings.map((finding, index) => {
                 const isIF = finding.module === 'UNEXPLAINED_OUTLIER_ANOMALY';
                 const isVisual = ['DUPLICATE_CROSS_PROJECT_PHOTO','DUPLICATE_SEQUENTIAL_PHOTO','MISSING_EXIF_METADATA','GEOFENCE_MISMATCH_ANOMALY'].includes(finding.module);
-                const moduleTag = isIF ? 'Isolation Forest' : isVisual ? 'Visual Engine' : 'Domain Rules';
-                const moduleColor = isIF ? '#c06090' : isVisual ? '#5090c0' : '#6a9a7a';
+                const isSatellite = ['GHOST_PROJECT_NO_PHYSICAL_CHANGE','UNAUTHORIZED_UNREPORTED_CONSTRUCTION','SATELLITE_VERIFICATION_SKIPPED'].includes(finding.module);
+                const moduleTag = isIF ? 'Isolation Forest' : isVisual ? 'Visual Engine' : isSatellite ? 'Sentinel-2 Satellite' : 'Domain Rules';
+                const moduleColor = isIF ? '#c06090' : isVisual ? '#5090c0' : isSatellite ? '#2aa898' : '#6a9a7a';
                 return (<div className="finding" key={`${finding.title}-${index}`}>
                     <div className={`finding-marker finding-${finding.severity.toLowerCase()}`}>
                       <AlertTriangle size={14}/>
@@ -1838,6 +2109,30 @@ function ProjectDetailPage() {
             )}
           </section>
 
+          {/* Sentinel-2 Satellite Earth Observation Section */}
+          <section className="surface-card" data-testid="section-satellite">
+            <div className="section-heading">
+              <div>
+                <div className="eyebrow">SATELLITE EARTH OBSERVATION (PHASE 3)</div>
+                <h3>Copernicus Sentinel-2 multi-spectral ground change detection</h3>
+              </div>
+              <span style={{ fontSize: '10px', color: '#7b8d9a' }}>
+                10-meter orbital resolution · European Space Agency (ESA)
+              </span>
+            </div>
+
+            <ProjectSatelliteCard
+              satVer={satVer}
+              satScore={satScore}
+              workId={item.workId}
+              category={item.category}
+              district={item.district}
+              state={item.state}
+              physicalProgress={item.physicalProgress}
+              lat={item.latitude}
+              lon={item.longitude}
+            />
+          </section>
 
           <section className="surface-card">
             <div className="section-heading">

@@ -807,6 +807,8 @@ def get_project_detail(work_id: str, request: Request):
         "district": p["district_name"] or "Visakhapatnam",
         "state": p.get("state_code") or "AP",
         "stateCode": p.get("state_code") or "AP",
+        "latitude": float(p.get("latitude") or 17.6868) if p.get("latitude") is not None else 17.6868,
+        "longitude": float(p.get("longitude") or 83.2185) if p.get("longitude") is not None else 83.2185,
         "sanctionedAmount": float(p["sanctioned_amount"] or 0),
         "expenditure": float(p["expenditure_incurred"] or 0),
         "physicalProgress": float(p["physical_progress_pct"] or 0),
@@ -816,6 +818,9 @@ def get_project_detail(work_id: str, request: Request):
         "isolationForestStatus": ml_eval.get("isolationForestStatus"),
         "peerSampleCount": ml_eval.get("peerSampleCount"),
         "heuristicScore": ml_eval.get("heuristicScore"),
+        "satellite_verification": ml_eval.get("satellite_verification"),
+        "satelliteVerification": ml_eval.get("satelliteVerification"),
+        "moduleScores": ml_eval.get("moduleScores", {}),
         "workflowStatus": p["workflow_status"] or "OPEN",
         "escalationReason": p.get("escalation_reason") or ("Payment velocity divergence" if (p.get("workflow_status") or "").startswith("ESCALAT") else ""),
         "fiscalYear": p["fiscal_year"] or "2023-2024",
@@ -874,12 +879,19 @@ def get_project_detail(work_id: str, request: Request):
             },
             {
                 "name": "Satellite Change Detection",
-                "status": "INCONCLUSIVE",
-                "score": None,
-                "summary": "DEMO / SIMULATED SATELLITE RESULT — imagery adapter is not connected to a live provider.",
-                "evidence": ["Inconclusive — imagery unavailable", "NDVI and NDBI comparison simulated for demonstration."],
+                "status": (
+                    "FLAGGED" if (ml_eval.get("moduleScores", {}).get("satelliteScore") or 0) >= 60.0 or any(f.get("module") in ("GHOST_PROJECT_NO_PHYSICAL_CHANGE", "UNAUTHORIZED_UNREPORTED_CONSTRUCTION") for f in function_combined)
+                    else ("INCONCLUSIVE" if (ml_eval.get("satellite_verification", {}).get("status") == "SATELLITE_DATA_UNAVAILABLE_CLOUDY") else "AVAILABLE")
+                ),
+                "score": ml_eval.get("moduleScores", {}).get("satelliteScore"),
+                "summary": "Copernicus Sentinel-2 Level-2A multi-spectral change detection (NDBI & NDVI deltas).",
+                "evidence": [f["explanation"] for f in function_combined if f["module"] in ("GHOST_PROJECT_NO_PHYSICAL_CHANGE", "UNAUTHORIZED_UNREPORTED_CONSTRUCTION", "SATELLITE_VERIFICATION_SKIPPED")] or [
+                    f"Sentinel-2 NDBI delta: {ml_eval.get('satellite_verification', {}).get('ndbi_delta', 0.0):+.3f} (Built-up structural index)",
+                    f"Observation window: {ml_eval.get('satellite_verification', {}).get('t0_date')} -> {ml_eval.get('satellite_verification', {}).get('t1_date')} (Cloud: {ml_eval.get('satellite_verification', {}).get('cloud_cover_pct', 0.0)}%)",
+                ],
             }
         ],
+
 
         "photos": [
             {

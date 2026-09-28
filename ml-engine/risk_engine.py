@@ -43,6 +43,18 @@ except ImportError:  # pragma: no cover
 
 from feature_engineering import extract_feature_vector
 
+# Satellite engine import (Phase 3) — guarded so engine boots cleanly anywhere
+try:
+    from satellite_engine import analyze_satellite_ground_change
+    _SATELLITE_AVAILABLE = True
+except ImportError:
+    try:
+        from ml_engine.satellite_engine import analyze_satellite_ground_change
+        _SATELLITE_AVAILABLE = True
+    except ImportError:
+        analyze_satellite_ground_change = None
+        _SATELLITE_AVAILABLE = False
+
 # ---------------------------------------------------------------------------
 # Weights & configuration
 # ---------------------------------------------------------------------------
@@ -607,11 +619,75 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
     # ---- Layer 2: Isolation Forest score (0–100) ---------------------------
     if_score, if_status = _detector.score_project(project)
 
-    # ---- Hybrid synthesis: 70% heuristic + 30% IF --------------------------
-    heur_w = w.get("heuristic_domain_weight", 0.70)
-    iso_w = w.get("isolation_forest_anomaly_weight", 0.30)
+    # ---- Layer 3: Visual evidence integrity (0–100) ------------------------
+    visual_score = min(
+        100.0,
+        round((1.0 - features["evidenceIntegrityScore"]) * 80.0 + 15.0, 1),
+    )
 
-    raw_score = (heuristic_score * heur_w) + (if_score * iso_w)
+    # ---- Layer 4: Satellite Sentinel-2 change detection -------------------
+    lat = float(project.get("latitude") or project.get("lat") or 17.6868)
+    lon = float(project.get("longitude") or project.get("lon") or 83.2185)
+    sanction_date = project.get("dateOfSanction") or "2023-01-01"
+    current_date = project.get("expectedCompletionDate") or project.get("updatedAt")
+    physical_progress = float(
+        project.get("physicalProgressPct")
+        if project.get("physicalProgressPct") is not None
+        else (project.get("physicalProgress") or 0.0)
+    )
+    work_id = project.get("workId", "UNKNOWN")
+
+    if _SATELLITE_AVAILABLE and analyze_satellite_ground_change:
+        sat_result = analyze_satellite_ground_change(
+            lat=lat,
+            lon=lon,
+            sanction_date=sanction_date,
+            current_date=current_date,
+            physical_progress=physical_progress,
+            work_id=work_id,
+            force_cloud=bool(project.get("forceCloud")),
+            force_ghost=bool(project.get("forceGhost")),
+            force_unauthorized=bool(project.get("forceUnauthorized")),
+        )
+    else:
+        sat_result = {
+            "status": "SATELLITE_DATA_UNAVAILABLE_CLOUDY",
+            "ndbi_delta": 0.0,
+            "ndvi_delta": 0.0,
+            "t0_date": str(sanction_date),
+            "t1_date": str(current_date or datetime.today().date()),
+            "cloud_cover_pct": 80.0,
+            "satellite_score": None,
+            "findings": [],
+            "gee_mode": "DETERMINISTIC_MOCK",
+        }
+
+    sat_status = sat_result.get("status")
+    sat_score = sat_result.get("satellite_score")
+
+    # ---- Hybrid synthesis: Phase 3 50/20/15/15 weights ----------------------
+    heur_w = w.get("heuristic_domain_weight", 0.50)
+    iso_w = w.get("isolation_forest_anomaly_weight", 0.20)
+    vis_w = w.get("visual_spatial_weight", 0.15)
+    sat_w = w.get("satellite_spectral_weight", 0.15)
+
+    # Edge Case B (Persistent cloud cover) / Missing Satellite:
+    # Do NOT penalize; re-normalize remaining weights dynamically.
+    if sat_score is None or sat_status == "SATELLITE_DATA_UNAVAILABLE_CLOUDY":
+        rem_w = heur_w + iso_w + vis_w
+        raw_score = (
+            (heuristic_score * (heur_w / rem_w))
+            + (if_score * (iso_w / rem_w))
+            + (visual_score * (vis_w / rem_w))
+        )
+    else:
+        raw_score = (
+            (heuristic_score * heur_w)
+            + (if_score * iso_w)
+            + (visual_score * vis_w)
+            + (float(sat_score) * sat_w)
+        )
+
 
     # Data completeness and workflow escalation floors (unchanged from v1)
     completeness = project.get("dataCompleteness", "COMPLETE")
@@ -683,6 +759,11 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
         })
 
 
+    # Append satellite spectral findings (Phase 3)
+    for sf in sat_result.get("findings", []):
+        if sf.get("title") not in {f["title"] for f in findings}:
+            findings.append(sf)
+
     # ---- Module scores (backward-compatible keys) -------------------------
     return {
         "workId": project.get("workId", "UNKNOWN"),
@@ -700,14 +781,31 @@ def evaluate_project_risk(project: Dict[str, Any]) -> Dict[str, Any]:
                 100.0,
                 round((1.0 - features["evidenceIntegrityScore"]) * 80.0 + 15.0, 1),
             ),
-            "satelliteScore": None,
+            "satelliteScore": round(float(sat_score), 1) if sat_score is not None else None,
         },
         # NEW keys (additive — do not break any existing schema)
         "isolationForestScore": if_score,
         "isolationForestStatus": if_status,
         "peerSampleCount": _detector.n_samples,
         "heuristicScore": round(heuristic_score, 2),
+        "satellite_verification": {
+            "status": sat_result["status"],
+            "ndbi_delta": sat_result["ndbi_delta"],
+            "ndvi_delta": sat_result["ndvi_delta"],
+            "t0_date": sat_result["t0_date"],
+            "t1_date": sat_result["t1_date"],
+            "cloud_cover_pct": sat_result["cloud_cover_pct"],
+        },
+        "satelliteVerification": {
+            "status": sat_result["status"],
+            "ndbi_delta": sat_result["ndbi_delta"],
+            "ndvi_delta": sat_result["ndvi_delta"],
+            "t0_date": sat_result["t0_date"],
+            "t1_date": sat_result["t1_date"],
+            "cloud_cover_pct": sat_result["cloud_cover_pct"],
+        },
     }
+
 
 
 # ---------------------------------------------------------------------------

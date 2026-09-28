@@ -1,9 +1,11 @@
 {
-  "model_version": "3.0.0-phase1-isolation-forest",
-  "trained_at": "2026-09-27T00:00:00Z",
+  "model_version": "3.0.0-phase3-sentinel2-satellite",
+  "trained_at": "2026-09-28T00:00:00Z",
   "weights": {
-    "isolation_forest_anomaly_weight": 0.30,
-    "heuristic_domain_weight": 0.70,
+    "heuristic_domain_weight": 0.50,
+    "isolation_forest_anomaly_weight": 0.20,
+    "visual_spatial_weight": 0.15,
+    "satellite_spectral_weight": 0.15,
     "divergence_penalty_multiplier": 55.0,
     "cost_overrun_penalty_multiplier": 65.0,
     "time_overrun_penalty_multiplier": 18.0,
@@ -16,7 +18,10 @@
     "divergence_critical_threshold": 0.15,
     "cost_overrun_threshold": 1.05,
     "time_elapsed_critical_ratio": 0.90,
-    "isolation_forest_outlier_threshold": 75.0
+    "isolation_forest_outlier_threshold": 75.0,
+    "satellite_ndbi_ghost_threshold": 0.03,
+    "satellite_ndbi_unauthorized_threshold": 0.18,
+    "satellite_cloud_filter_max_pct": 20.0
   },
   "escalation_floor": {
     "district_escalation": 75.80,
@@ -30,9 +35,16 @@
     "time_elapsed_ratio",
     "payment_velocity_delta"
   ],
-  "phase": "1",
-  "detector": "IsolationForest",
+  "phase": "3",
+  "detector": "IsolationForest+Sentinel2SpectralDelta",
   "contamination": 0.08,
   "n_estimators": 100,
-  "baseline_peers": 40
+  "baseline_peers": 40,
+  "satellite": {
+    "sensor": "Sentinel-2 MSI (Copernicus)",
+    "collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "indices": ["NDBI", "NDVI"],
+    "buffer_meters": 100
+  }
 }
+
