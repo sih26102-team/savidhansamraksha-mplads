@@ -1816,33 +1816,33 @@ function ProjectVisualCard({ photo, category, workId, title, district }) {
                     <div style={{ color: '#f08070', fontSize: '11px', lineHeight: '1.6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                             <AlertTriangle size={15} style={{ color: '#ff7060', flexShrink: 0 }} />
-                            <strong style={{ color: '#ff9988', fontSize: '12px' }}>Computer Vision Alert: Reused / Duplicate Ground Photograph</strong>
+                            <strong style={{ color: '#ff9988', fontSize: '12px' }}>Photo Alert: Reused / Duplicate Ground Photograph</strong>
                         </div>
-                        The 64-bit perceptual hash (pHash) of this image matches a photograph filed under another milestone or project (Hamming distance &lt; 5). Reusing identical physical photos across separate claims is a strong indicator of milestone fabrication or ghost work. Physical site inspection mandatory before funds disbursement.
+                        This photo matches an identical image already submitted under another milestone or project. Reusing duplicate photos across claims indicates potential milestone fabrication. On-site physical inspection is required before funds disbursement.
                     </div>
                 ) : isGpsBad ? (
                     <div style={{ color: '#f08070', fontSize: '11px', lineHeight: '1.6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                             <AlertTriangle size={15} style={{ color: '#ff7060', flexShrink: 0 }} />
-                            <strong style={{ color: '#ff9988', fontSize: '12px' }}>Geofence Alert: Off-Site Photograph Coordinates</strong>
+                            <strong style={{ color: '#ff9988', fontSize: '12px' }}>Location Alert: Off-Site Photograph Coordinates</strong>
                         </div>
-                        Camera EXIF coordinates place this photo outside the designated constituency boundary ({district || 'authorized sector'}). The photograph appears to have been taken at an unverified location rather than the sanctioned project site.
+                        GPS coordinates place this photo outside the designated work area ({district || 'authorized sector'}). The photo appears to have been taken at an unverified location rather than the sanctioned project site.
                     </div>
                 ) : isExifBad ? (
                     <div style={{ color: '#e0b060', fontSize: '11px', lineHeight: '1.6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                             <AlertTriangle size={15} style={{ color: '#ffd54f', flexShrink: 0 }} />
-                            <strong style={{ color: '#ffd070', fontSize: '12px' }}>Metadata Advisory: EXIF Camera Tags Stripped</strong>
+                            <strong style={{ color: '#ffd070', fontSize: '12px' }}>Photo Advisory: Camera & GPS Metadata Missing</strong>
                         </div>
-                        Camera hardware and GPS tags were removed before submission (characteristic of WhatsApp or messaging app re-compression). While the image is retained in the audit record, on-site physical inspection is advised to confirm coordinates.
+                        Camera metadata and GPS tags were removed before submission (commonly caused by WhatsApp or messaging app re-compression). On-site physical verification is recommended.
                     </div>
                 ) : (
                     <div style={{ color: '#68c298', fontSize: '11px', lineHeight: '1.6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                             <Check size={15} style={{ color: '#00e676', flexShrink: 0 }} />
-                            <strong style={{ color: '#88e2b8', fontSize: '12px' }}>Visual Forensics Verified: Authentic Ground Evidence</strong>
+                            <strong style={{ color: '#88e2b8', fontSize: '12px' }}>Site Photo Verified: Authentic Ground Evidence</strong>
                         </div>
-                        Camera EXIF header validated, geotag coordinates match the authorized work site in {district || 'the constituency'}, and the 64-bit perceptual hash (pHash) is verified unique across the national MPLADS project database.
+                        Photo timestamp validated, GPS coordinates match the sanctioned work site in {district || 'the constituency'}, and the image is confirmed unique (not reused).
                     </div>
                 )}
             </div>
@@ -2226,9 +2226,9 @@ function ProjectSatelliteCard({ satVer: initialSatVer, satScore: initialSatScore
           <div style={{ color: '#f08070', fontSize: '11px', lineHeight: '1.6' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <AlertTriangle size={15} style={{ color: '#ff7060', flexShrink: 0 }} />
-              <strong style={{ color: '#ff9988', fontSize: '12px' }}>Satellite Discrepancy Alert: Ghost Project Signature (No Physical Ground Work)</strong>
+              <strong style={{ color: '#ff9988', fontSize: '12px' }}>Satellite Discrepancy Alert: No Ground Work Detected (Ghost Project Risk)</strong>
             </div>
-            Registry claims <strong>{progressVal.toFixed(1)}% physical completion</strong>, but Copernicus Sentinel-2 multi-spectral orbital sensors detected an NDBI built-up index delta of only <strong>{ndbi >= 0 ? '+' : ''}{ndbi.toFixed(3)}</strong> (&lt; +0.030 threshold) across the 100-meter work radius. Surface reflectance is identical to the pre-sanction baseline imagery. No physical construction, excavation, or structural materials are present on site. High probability of progress fabrication or paper-only milestone claiming.
+            Official records state <strong>{progressVal.toFixed(1)}% physical completion</strong>, but satellite orbital imagery shows zero physical construction, excavation, or structural progress at this site since sanctioning. High risk of milestone fabrication or paper-only reporting.
           </div>
         ) : isUnauthorized ? (
           <div style={{ color: '#f0a050', fontSize: '11px', lineHeight: '1.6' }}>
@@ -2236,23 +2236,23 @@ function ProjectSatelliteCard({ satVer: initialSatVer, satScore: initialSatScore
               <AlertTriangle size={15} style={{ color: '#ffa726', flexShrink: 0 }} />
               <strong style={{ color: '#ffcc80', fontSize: '12px' }}>Satellite Discrepancy Alert: Unreported Construction Activity</strong>
             </div>
-            Registry records state <strong>0.0% physical progress</strong>, yet Sentinel-2 multi-spectral sensors detected a significant built-up index delta of <strong>+{ndbi.toFixed(3)}</strong> (&gt; +0.180 threshold) within the 100-meter site perimeter. Concrete or masonry ground alteration has taken place without corresponding official administrative records or milestone filings.
+            Official records show <strong>0.0% physical progress</strong>, but satellite monitoring detected active ground construction at this site without corresponding administrative milestone filings.
           </div>
         ) : isCloudy ? (
           <div style={{ color: '#8ca1b3', fontSize: '11px', lineHeight: '1.6' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <Sparkles size={15} style={{ color: '#64b5f6', flexShrink: 0 }} />
-              <strong style={{ color: '#b0bec5', fontSize: '12px' }}>Atmospheric Safety Bypass: Persistent Cloud Cover ({cloudPct}%)</strong>
+              <strong style={{ color: '#b0bec5', fontSize: '12px' }}>Satellite Status: Heavy Cloud Cover ({cloudPct}%)</strong>
             </div>
-            Persistent cloud overcast (&gt;70%) obstructed optical satellite reflectance during the observation window. Under Edge Case B safety protocols, the satellite module was bypassed cleanly with <strong>0 penalty points</strong>. Model weights were dynamically re-normalized across domain rules, Isolation Forest, and field photography to eliminate false positive flags.
+            Heavy cloud cover ({cloudPct}%) blocked optical satellite visibility during the observation period. To prevent false alarms, satellite evaluation was bypassed with <strong>0 penalty</strong> and evaluation relies on financial audits and site photos.
           </div>
         ) : (
           <div style={{ color: '#68c298', fontSize: '11px', lineHeight: '1.6' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <Check size={15} style={{ color: '#00e676', flexShrink: 0 }} />
-              <strong style={{ color: '#88e2b8', fontSize: '12px' }}>Satellite Ground Evidence Verified: Authentic Physical Progress</strong>
+              <strong style={{ color: '#88e2b8', fontSize: '12px' }}>Satellite Evidence Verified: Ground Progress Confirmed</strong>
             </div>
-            Dual-date Sentinel-2 Level-2A imagery confirms substantial structural ground transformation (NDBI delta: <strong>+{ndbi.toFixed(3)}</strong>, NDVI delta: <strong>{ndvi.toFixed(3)}</strong>) matching the reported {progressVal.toFixed(1)}% civil progress in {district || 'the constituency'}. Surface reflectance matches real concrete and civil material additions.
+            Satellite observation confirms visible structural progress on the ground matching the reported <strong>{progressVal.toFixed(1)}% progress</strong> in {district || 'the constituency'}.
           </div>
         )}
       </div>
@@ -2287,6 +2287,7 @@ function ProjectDetailPage() {
     const materialityFactor = Number(fusionSummary.materialityFactor || (item.sanctionedAmount > 50000000 ? 1.25 : item.sanctionedAmount > 10000000 ? 1.15 : item.sanctionedAmount > 2500000 ? 1.08 : 1.0));
     const activeModules = fusionSummary.activeModules || (isCloudy ? ['A', 'B'] : ['A', 'B', 'C']);
     const degradedModules = fusionSummary.degradedModules || (isCloudy ? ['C'] : []);
+    const moduleLabels = { 'A': 'A: Financial & Timeline', 'B': 'B: Site Photos', 'C': 'C: Satellite' };
     const isCorroborated = Boolean(fusionSummary.corroborationTriggered);
     const isCartelOverride = Boolean(fusionSummary.hierarchicalOverrideActive);
     const isNovelOutlier = Boolean(fusionSummary.novelOutlierDetected || (ifScore > 75));
@@ -2445,10 +2446,10 @@ function ProjectDetailPage() {
                 <AlertOctagon size={18} style={{ color: '#ff6b6b', flexShrink: 0, marginTop: '2px' }}/>
                 <div>
                   <strong style={{ color: '#ff7b7b', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
-                    CRITICAL CORROBORATED FRAUD SIGNAL · AUTOMATIC ESCALATION
+                    CRITICAL DISCREPANCY CONFIRMED · AUTOMATIC ESCALATION
                   </strong>
                   <p style={{ margin: 0, fontSize: '11px', color: '#ffd0d0', lineHeight: '1.45' }}>
-                    Cross-Module Confirmation: Module A's financial stall / billing inflation anomaly is directly corroborated by Module B's detection of duplicate milestone photographs. Reported physical progress is synthetic while funds are flowing. Escalated straight to Critical priority.
+                    Cross-Check Alert: Financial withdrawals are continuing while site photos show duplicate or stalled work. Reported physical progress does not match actual ground evidence. Escalated for immediate priority action.
                   </p>
                 </div>
               </div>
@@ -2468,10 +2469,10 @@ function ProjectDetailPage() {
                 <Landmark size={18} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }}/>
                 <div>
                   <strong style={{ color: '#f59e0b', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
-                    HIERARCHICAL OVERRIDE · FINANCIAL NETWORK COLLUSION & BID-RIGGING
+                    HIGH FIDUCIARY RISK · TENDERING & VENDOR CONCENTRATION
                   </strong>
                   <p style={{ margin: 0, fontSize: '11px', color: '#fed7aa', lineHeight: '1.45' }}>
-                    Edge Case C: Asset physically verified on ground and satellite, but high risk of financial network collusion detected. Statutory tendering was omitted alongside repeated agency-approver concentration. Overridden to HIGH RISK regardless of clean physical evidence.
+                    Tendering Alert: Mandatory competitive e-tendering was omitted and repeated contract awards were concentrated with the same vendor. Marked as HIGH RISK for administrative procurement audit.
                   </p>
                 </div>
               </div>
@@ -2491,43 +2492,43 @@ function ProjectDetailPage() {
                 <Sparkles size={18} style={{ color: '#c084fc', flexShrink: 0, marginTop: '2px' }}/>
                 <div>
                   <strong style={{ color: '#c084fc', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
-                    OUT-OF-DISTRIBUTION NOVEL FRAUD DETECTED (UNSUPERVISED ML OUTLIER)
+                    UNUSUAL PROJECT EXECUTION PATTERN DETECTED
                   </strong>
                   <p style={{ margin: 0, fontSize: '11px', color: '#e9d5ff', lineHeight: '1.45' }}>
-                    Edge Case D: Multi-dimensional statistical divergence departed from regional peer baselines without single-rule breach alone. Surfaced by unsupervised Isolation Forest for priority human investigative audit.
+                    This project shows an unusual combination of billing speed, milestone delays, or prolonged dormancy compared to similar works in this region. Surfaced for priority administrative review.
                   </p>
                 </div>
               </div>
             )}
 
-            <p className="disclaimer">These are model-generated signals based on available records and imagery. They are not legal findings. Each flag includes specific evidence and is subject to human review.</p>
+            <p className="disclaimer">These risk indicators are automatically generated from project records and site imagery to assist reviewing officers. They are not legal findings and are subject to official verification.</p>
 
-            {/* 3-Module Cross-Telemetry Breakdown */}
+            {/* Multi-Source Cross-Telemetry Breakdown */}
             <div style={{ margin: '0 20px 14px', padding: '14px 16px', background: '#0e2537', borderRadius: '6px', border: '1px solid #1e3d57' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <span style={{ fontSize: '10px', color: '#91a4b4', fontWeight: 700, letterSpacing: '0.06em', display: 'block' }}>
-                    CROSS-MODULE WEIGHTED FUSION & MATERIALITY CALIBRATION
+                    MULTI-SOURCE AUDIT & BUDGET CALIBRATION
                   </span>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '3px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '11px', color: '#7ad0c0' }}>
-                      Active Engines: <strong>[{activeModules.join(', ')}]</strong>
+                      Active Verification Sources: <strong>[{activeModules.map(m => moduleLabels[m] || m).join(', ')}]</strong>
                     </span>
                     {degradedModules.length > 0 && (
                       <span style={{ fontSize: '11px', color: '#e2a090' }}>
-                        · Degraded / Bypassed: <strong>[{degradedModules.join(', ')}]</strong>
+                        · Bypassed: <strong>[{degradedModules.map(m => moduleLabels[m] || m).join(', ')}]</strong>
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '10px', color: '#8ca1b3' }}>Materiality Factor:</div>
+                  <div style={{ fontSize: '10px', color: '#8ca1b3' }}>Project Budget Weight:</div>
                   <strong style={{ fontSize: '13px', color: materialityFactor > 1.0 ? '#f0c070' : '#8ca1b3' }}>
-                    {materialityFactor.toFixed(2)}x Multiplier
+                    {materialityFactor.toFixed(2)}x Priority Scale
                   </strong>
                   <span style={{ fontSize: '10px', color: '#688499', marginLeft: '6px' }}>
-                    ({money(item.sanctionedAmount || item.expenditure)} Capital)
+                    ({money(item.sanctionedAmount || item.expenditure)} Sanctioned)
                   </span>
                 </div>
               </div>
@@ -2537,7 +2538,7 @@ function ProjectDetailPage() {
                 {/* Module A */}
                 <div style={{ padding: '10px 12px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '5px', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10px', color: '#93c5fd', fontWeight: 700 }}>MODULE A: FINANCIAL & TEMPORAL</span>
+                    <span style={{ fontSize: '10px', color: '#93c5fd', fontWeight: 700 }}>MODULE A: FINANCIAL & TIMELINE</span>
                     <span style={{ fontSize: '9px', color: '#bfdbfe', background: 'rgba(59, 130, 246, 0.2)', padding: '1px 5px', borderRadius: '3px' }}>
                       {isCloudy ? '66.7% Weight' : '50% Weight'}
                     </span>
@@ -2549,14 +2550,14 @@ function ProjectDetailPage() {
                     <span style={{ fontSize: '10px', color: '#93c5fd' }}>/ 100</span>
                   </div>
                   <small style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                    Cost-per-unit IQR, dormancy velocity, smurfing, and tender compliance
+                    Unit cost benchmarks, work delays, fund splitting, and tender rules
                   </small>
                 </div>
 
                 {/* Module B */}
                 <div style={{ padding: '10px 12px', background: 'rgba(14, 165, 233, 0.08)', borderRadius: '5px', border: '1px solid rgba(14, 165, 233, 0.25)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10px', color: '#7dd3fc', fontWeight: 700 }}>MODULE B: VISUAL & SPATIAL</span>
+                    <span style={{ fontSize: '10px', color: '#7dd3fc', fontWeight: 700 }}>MODULE B: SITE PHOTOS & LOCATION</span>
                     <span style={{ fontSize: '9px', color: '#bae6fd', background: 'rgba(14, 165, 233, 0.2)', padding: '1px 5px', borderRadius: '3px' }}>
                       {isCloudy ? '33.3% Weight' : '25% Weight'}
                     </span>
@@ -2568,7 +2569,7 @@ function ProjectDetailPage() {
                     <span style={{ fontSize: '10px', color: '#7dd3fc' }}>/ 100</span>
                   </div>
                   <small style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                    Perceptual hash deduplication, sequential reuse, and EXIF geofencing
+                    Duplicate photo checks, timestamp audit, and GPS boundary verification
                   </small>
                 </div>
 
@@ -2576,10 +2577,10 @@ function ProjectDetailPage() {
                 <div style={{ padding: '10px 12px', background: isCloudy ? 'rgba(100, 116, 139, 0.08)' : 'rgba(16, 185, 129, 0.08)', borderRadius: '5px', border: `1px solid ${isCloudy ? 'rgba(100, 116, 139, 0.25)' : 'rgba(16, 185, 129, 0.25)'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '10px', color: isCloudy ? '#94a3b8' : '#6ee7b7', fontWeight: 700 }}>
-                      MODULE C: SENTINEL-2 EO
+                      MODULE C: SATELLITE MONITORING
                     </span>
                     <span style={{ fontSize: '9px', color: isCloudy ? '#94a3b8' : '#a7f3d0', background: isCloudy ? 'rgba(100, 116, 139, 0.2)' : 'rgba(16, 185, 129, 0.2)', padding: '1px 5px', borderRadius: '3px' }}>
-                      {isCloudy ? 'Degraded (Bypassed)' : '25% Weight'}
+                      {isCloudy ? 'Bypassed (Overcast)' : '25% Weight'}
                     </span>
                   </div>
                   <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -2590,8 +2591,8 @@ function ProjectDetailPage() {
                   </div>
                   <small style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
                     {isCloudy
-                      ? 'Cloud cover >70%; re-normalized across A & B gracefully'
-                      : (satVer ? `NDBI: ${satVer.ndbi_delta >= 0 ? '+' : ''}${Number(satVer.ndbi_delta).toFixed(3)} · Cloud: ${satVer.cloud_cover_pct}%` : 'Multi-spectral bi-temporal change detection')
+                      ? 'Cloud cover >70%; evaluation shifted safely to Financial & Photos'
+                      : (satVer ? `Ground change: ${Number(satVer.ndbi_delta) >= 0.05 ? 'Confirmed' : 'Minimal'} · Cloud cover: ${satVer.cloud_cover_pct}%` : 'Dual-date satellite ground change check')
                     }
                   </small>
                 </div>
@@ -2599,13 +2600,13 @@ function ProjectDetailPage() {
 
               {isCloudy && (
                 <div style={{ marginTop: '10px', padding: '6px 10px', background: 'rgba(42, 168, 152, 0.08)', borderRadius: '4px', fontSize: '11px', color: '#7ad0c0', lineHeight: '1.4' }}>
-                  ☁️ <strong>Graceful Degradation Active:</strong> Sentinel-2 optical sensors encountered persistent cloud cover (&gt;70%) over the work site coordinates. Model weights were dynamically re-normalized across Module A (66.7%) and Module B (33.3%) with zero penalty to protect from false alarms.
+                  ☁️ <strong>Satellite View Blocked by Clouds:</strong> Optical satellite sensors encountered persistent cloud cover (&gt;70%) over the work site coordinates. Model weights were dynamically rebalanced across Financial Audit (66.7%) and Site Photos (33.3%) with zero penalty to protect from false alarms.
                 </div>
               )}
 
               {isEscalated && (
                 <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(224, 122, 95, 0.1)', borderRadius: '4px', fontSize: '11px', color: '#e2a090', lineHeight: '1.4' }}>
-                  ℹ️ <strong>Authority Statutory Floor:</strong> This project was formally escalated by oversight leadership. The system applies a statutory <strong>+75.80 Priority Floor</strong> to guarantee immediate oversight visibility.
+                  ℹ️ <strong>Authority Escalation Active:</strong> This project was formally escalated by oversight leadership. The system applies an <strong>Oversight Priority Floor of 75+</strong> to guarantee immediate oversight visibility.
                 </div>
               )}
             </div>
@@ -2619,25 +2620,25 @@ function ProjectDetailPage() {
                 const isVisual = ['DUPLICATE_CROSS_PROJECT_PHOTO','DUPLICATE_SEQUENTIAL_PHOTO','MISSING_EXIF_METADATA','GEOFENCE_MISMATCH_ANOMALY'].includes(finding.module);
                 const isSatellite = ['GHOST_PROJECT_NO_PHYSICAL_CHANGE','UNAUTHORIZED_UNREPORTED_CONSTRUCTION','SATELLITE_VERIFICATION_SKIPPED'].includes(finding.module);
 
-                let moduleTag = 'Domain Rules';
+                let moduleTag = 'Audit Rule';
                 let moduleColor = '#6a9a7a';
                 if (isCorrob) {
-                  moduleTag = 'Critical Corroboration';
+                  moduleTag = 'Cross-Verified Discrepancy';
                   moduleColor = '#e05555';
                 } else if (isOverride) {
-                  moduleTag = 'Cartel Collusion Override';
+                  moduleTag = 'Tender & Vendor Audit';
                   moduleColor = '#d87a22';
                 } else if (isFinTemporal) {
-                  moduleTag = 'Module A (Financial & Temporal)';
+                  moduleTag = 'Financial & Timeline';
                   moduleColor = '#3b82f6';
                 } else if (isIF) {
-                  moduleTag = 'Isolation Forest';
+                  moduleTag = 'Statistical Pattern';
                   moduleColor = '#c06090';
                 } else if (isVisual) {
-                  moduleTag = 'Module B (Visual Forensics)';
+                  moduleTag = 'Site Photo Check';
                   moduleColor = '#5090c0';
                 } else if (isSatellite) {
-                  moduleTag = 'Module C (Sentinel-2 EO)';
+                  moduleTag = 'Satellite Verification';
                   moduleColor = '#2aa898';
                 }
 
