@@ -69,25 +69,12 @@ function ErrorState({ onRetry, message = 'We could not retrieve this workspace v
 function Skeleton({ rows = 4 }) {
     return <div className="space-y-3" data-testid="state-loading">{Array.from({ length: rows }).map((_, index) => <div className="skeleton-row" key={index}><div className="skeleton w-8"/><div className="skeleton flex-1"/><div className="skeleton w-20"/></div>)}</div>;
 }
-function RiskSignalCell({ riskLevel, riskScore, alertCategory }) {
+function RiskSignalCell({ riskLevel, riskScore }) {
     const safeLevel = (riskLevel ? String(riskLevel) : 'LOW').toUpperCase();
     const safeScore = Number(riskScore);
-    const category = alertCategory || (safeScore >= 70 ? 'RED' : safeScore >= 40 ? 'YELLOW' : 'GREEN');
     return (<div className="risk-signal-cell" data-testid={`risk-signal-${safeLevel.toLowerCase()}`}>
-      <div className="risk-pill-row" style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+      <div className="risk-pill-row">
         <StatusPill value={safeLevel}/>
-        <span style={{
-          fontSize: '9px',
-          fontWeight: 700,
-          padding: '1px 5px',
-          borderRadius: '3px',
-          letterSpacing: '0.04em',
-          background: category === 'RED' ? 'rgba(224, 85, 85, 0.15)' : category === 'YELLOW' ? 'rgba(216, 122, 34, 0.15)' : 'rgba(42, 168, 152, 0.15)',
-          color: category === 'RED' ? '#e05555' : category === 'YELLOW' ? '#d87a22' : '#2aa898',
-          border: `1px solid ${category === 'RED' ? 'rgba(224, 85, 85, 0.35)' : category === 'YELLOW' ? 'rgba(216, 122, 34, 0.35)' : 'rgba(42, 168, 152, 0.35)'}`
-        }}>
-          {category}
-        </span>
       </div>
       <div className="risk-score-row">
         <span className="risk-score-label">Score:</span>
@@ -2283,7 +2270,6 @@ function ProjectDetailPage() {
       <div className="detail-top" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '22px' }}>
         <div className="detail-statuses" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', paddingTop: '6px' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <StatusPill value={alertCategory} kind="alert"/>
             <StatusPill value={item.riskLevel}/>
             <StatusPill value={item.workflowStatus} kind="workflow"/>
           </div>
@@ -2373,7 +2359,7 @@ function ProjectDetailPage() {
                     background: 'currentColor',
                     boxShadow: alertCategory === 'RED' ? '0 0 6px #f07070' : alertCategory === 'YELLOW' ? '0 0 6px #e29a3a' : 'none',
                   }} />
-                  {alertCategory} ALERT · {(item.riskLevel || 'LOW').toUpperCase()}
+                  {(item.riskLevel || 'LOW').toUpperCase()} AUDIT RISK
                 </span>
                 <span className="ai-tag"><Sparkles size={12}/> Fusion calibrated</span>
               </div>
