@@ -782,6 +782,135 @@ def list_escalated_projects(request: Request):
     ]
     return items
 
+def generate_unique_actionable_summary(p: dict, final_risk_score: float, final_risk_level: str, final_alert_cat: str, findings: list) -> tuple:
+    spent = float(p.get("expenditure_incurred") or 0)
+    sanction = float(p.get("sanctioned_amount") or 0)
+    prog = float(p.get("physical_progress_pct") or 0)
+    spend_pct = (spent / sanction * 100.0) if sanction > 0 else 0.0
+    spent_lakh = f"₹{spent/100000:.2f} Lakh" if spent >= 100000 else f"₹{spent:,.0f}"
+    sanction_lakh = f"₹{sanction/100000:.2f} Lakh" if sanction >= 100000 else f"₹{sanction:,.0f}"
+    title = p.get("work_description") or p.get("title") or "MPLADS Project"
+    district = p.get("district_name") or p.get("district_id") or "the district"
+    workflow = str(p.get("workflow_status") or "OPEN").upper()
+
+    finding_texts = " ".join([f.get("title", "") + " " + f.get("explanation", "") for f in findings]).lower()
+
+    if final_alert_cat == "RED" or final_risk_score >= 70.0 or final_risk_level in ("HIGH", "CRITICAL"):
+        if "escalat" in workflow or "active authority escalation" in finding_texts:
+            summary = (
+                f"CRITICAL ESCALATION: Formally escalated to District Collector and State Nodal Authority. "
+                f"{spent_lakh} ({spend_pct:.1f}% of sanction) has been disbursed for '{title}', but verified physical progress "
+                f"stands at only {prog:.1f}%. Immediate physical site audit mandated."
+            )
+            directives = {
+                "urgency": "IMMEDIATE_ACTION_REQUIRED",
+                "fieldVerification": f"Mandate physical measurement book verification at {district} site to cross-check {prog:.1f}% claimed progress against physical structures.",
+                "fiduciaryAction": f"Freeze subsequent disbursements from {sanction_lakh} allocation pending joint engineering inspection report.",
+                "escalationProtocol": "Issue formal compliance show-cause notice to the executing agency and table in upcoming District Vigilance review."
+            }
+        elif (spend_pct >= 60.0 and prog <= 30.0) or "disproportionate" in finding_texts or "divergence" in finding_texts:
+            summary = (
+                f"HIGH RISK · Fund Utilization Divergence: {spent_lakh} ({spend_pct:.1f}% of sanction) has been drawn, "
+                f"while verified on-ground physical progress is only {prog:.1f}%. Funds are flowing significantly ahead of physical milestones "
+                f"for '{title}' in {district}. Hold on further disbursements recommended until ground verification."
+            )
+            directives = {
+                "urgency": "PRIORITY_AUDIT_RECOMMENDED",
+                "fieldVerification": f"Deploy District Works Inspector to confirm why ground progress is {prog:.1f}% despite {spend_pct:.1f}% capital outlay.",
+                "fiduciaryAction": f"Withhold release of remaining balance ({sanction_lakh}) until physical completion matches billed amounts.",
+                "escalationProtocol": "Submit site audit findings to District Nodal Officer within 7 working days."
+            }
+        elif "dormant" in finding_texts or "silence" in finding_texts or "stalled" in finding_texts:
+            summary = (
+                f"HIGH RISK · Prolonged Site Dormancy: Construction of '{title}' has stalled with no physical milestone updates recorded, "
+                f"despite {spent_lakh} already disbursed. Urgent site inspection required to determine contractor delay or site encumbrance."
+            )
+            directives = {
+                "urgency": "INSPECTION_REQUIRED",
+                "fieldVerification": f"Conduct joint inspection with executing contractor at {district} to ascertain ground impediments or labor abandonment.",
+                "fiduciaryAction": "Review contractor performance guarantee and encashment terms if idle duration exceeds statutory notice period.",
+                "escalationProtocol": "Notify State Nodal Department of stalled capital asset and issue formal notice to proceed."
+            }
+        elif "tender" in finding_texts or "collusion" in finding_texts or "omitted" in finding_texts:
+            summary = (
+                f"HIGH RISK · Procurement Non-Compliance: Work sanctioned for {sanction_lakh} without mandatory competitive e-tendering, "
+                f"exceeding statutory direct-nomination limits. Fiduciary audit and procurement review initiated."
+            )
+            directives = {
+                "urgency": "PROCUREMENT_AUDIT",
+                "fieldVerification": f"Inspect quality of executed works for '{title}' against approved detailed project report (DPR) specifications.",
+                "fiduciaryAction": "Audit technical sanction files and quotation comparison statements for procedural irregularities.",
+                "escalationProtocol": "Refer procurement records to District Collectorate Vigilance Cell for administrative evaluation."
+            }
+        elif "missing_uc" in finding_texts or "uc" in finding_texts or "utilisation certificate" in finding_texts:
+            summary = (
+                f"HIGH RISK · Statutory Compliance Overdue: Mandatory Utilisation Certificate (UC) has not been filed despite "
+                f"{spent_lakh} ({spend_pct:.1f}%) drawn from public funds. Statutory compliance hold on next installment."
+            )
+            directives = {
+                "urgency": "COMPLIANCE_HOLD",
+                "fieldVerification": "Verify completed project components and prepare final measurement book abstracts.",
+                "fiduciaryAction": "Block any subsequent MPLADS tranche until duly signed Form GFR 12-C Utilisation Certificate is uploaded.",
+                "escalationProtocol": "Flag executing agency in portal registry as non-compliant for statutory reporting."
+            }
+        elif "duplicate" in finding_texts or "photo" in finding_texts:
+            summary = (
+                f"HIGH RISK · Milestone Evidence Discrepancy: Field inspection photos submitted for '{title}' match duplicate submissions "
+                f"from other claims. Physical on-site verification by District Works Inspector required."
+            )
+            directives = {
+                "urgency": "EVIDENCE_VERIFICATION",
+                "fieldVerification": f"Re-photograph the work site in {district} using the secure mobile inspection app with active GPS lock.",
+                "fiduciaryAction": "Suspend milestone payment approvals pending verification of authentic, un-reused site imagery.",
+                "escalationProtocol": "Record formal audit entry in citizen accountability portal."
+            }
+        else:
+            summary = (
+                f"HIGH RISK · Execution Anomaly Detected: Irregular execution pattern detected for '{title}' in {district} "
+                f"({spend_pct:.1f}% funds disbursed vs {prog:.1f}% physical progress). Surfaced for priority administrative review."
+            )
+            directives = {
+                "urgency": "ADMINISTRATIVE_REVIEW",
+                "fieldVerification": "Inspect site milestones and verify contractor muster rolls and materials on site.",
+                "fiduciaryAction": "Reconcile bank disbursement records against engineering measurement books.",
+                "escalationProtocol": "Table under district priority review agenda."
+            }
+    elif final_alert_cat == "YELLOW" or final_risk_score >= 40.0:
+        if prog < 50.0 and spend_pct > 50.0:
+            summary = (
+                f"MODERATE ATTENTION · Progress Lag: {spent_lakh} ({spend_pct:.1f}%) spent with {prog:.1f}% physical completion for '{title}'. "
+                f"District nodal review recommended to align milestones with schedule."
+            )
+        elif "tender" in finding_texts or "split" in finding_texts:
+            summary = (
+                f"MODERATE ATTENTION · Fiduciary Procedure: Procurement and quotation records for '{title}' in {district} require "
+                f"nodal officer review to ensure compliance with MPLADS execution guidelines."
+            )
+        else:
+            summary = (
+                f"MODERATE ATTENTION · Timeline Variance: '{title}' in {district} reflects minor milestone variance "
+                f"({prog:.1f}% physical progress, {spent_lakh} spent). Routine inspection recommended."
+            )
+        directives = {
+            "urgency": "ROUTINE_MONITORING",
+            "fieldVerification": "Schedule next routine quarterly field inspection to verify milestone trajectory.",
+            "fiduciaryAction": "Ensure timely submission of intermediate expenditure statement before next quarter.",
+            "escalationProtocol": "Monitor via standard automated dashboard telemetry."
+        }
+    else:
+        summary = (
+            f"LOW RISK · Operational Compliance: '{title}' in {district} is progressing on schedule "
+            f"({prog:.1f}% completed, {spent_lakh} disbursed) with verified ground milestones and photo documentation."
+        )
+        directives = {
+            "urgency": "ON_TRACK",
+            "fieldVerification": "Periodic milestone inspection as per standard operating procedure.",
+            "fiduciaryAction": "Process regular progress payments in accordance with certified completion certificates.",
+            "escalationProtocol": "Standard continuous monitoring active."
+        }
+
+    return summary, directives
+
 @app.get("/api/projects/{work_id}")
 def get_project_detail(work_id: str, request: Request):
     user = require_user(request)
@@ -861,6 +990,13 @@ def get_project_detail(work_id: str, request: Request):
         "progressUpdates": progress,
     })
 
+    final_risk_score = float(p["risk_score"]) if p.get("risk_score") is not None else float(ml_eval["riskScore"])
+    final_risk_level = p["risk_level"] if p.get("risk_level") else ml_eval["riskLevel"]
+    final_alert_cat = "RED" if (final_risk_score >= 70.0 or final_risk_level in ("HIGH", "CRITICAL")) else ("YELLOW" if final_risk_score >= 40.0 else "GREEN")
+    unique_summary, unique_directives = generate_unique_actionable_summary(
+        p, final_risk_score, final_risk_level, final_alert_cat, ml_eval.get("findings", [])
+    )
+
     return {
         "workId": p["work_id"],
         "title": p["title"] or "MPLADS Infrastructure Work",
@@ -874,8 +1010,8 @@ def get_project_detail(work_id: str, request: Request):
         "sanctionedAmount": float(p["sanctioned_amount"] or 0),
         "expenditure": float(p["expenditure_incurred"] or 0),
         "physicalProgress": float(p["physical_progress_pct"] or 0),
-        "riskScore": (final_risk_score := float(p["risk_score"]) if p.get("risk_score") is not None else float(ml_eval["riskScore"])),
-        "riskLevel": (final_risk_level := p["risk_level"] if p.get("risk_level") else ml_eval["riskLevel"]),
+        "riskScore": final_risk_score,
+        "riskLevel": final_risk_level,
         "isolationForestScore": ml_eval.get("isolationForestScore"),
         "isolationForestStatus": ml_eval.get("isolationForestStatus"),
         "peerSampleCount": ml_eval.get("peerSampleCount"),
@@ -884,16 +1020,10 @@ def get_project_detail(work_id: str, request: Request):
         "satelliteVerification": ml_eval.get("satelliteVerification"),
         "moduleScores": ml_eval.get("moduleScores", {}),
         "financialTemporalModule": ml_eval.get("financialTemporalModule", {}),
-        "alertCategory": (final_alert_cat := "RED" if (final_risk_score >= 70.0 or final_risk_level in ("HIGH", "CRITICAL")) else ("YELLOW" if final_risk_score >= 40.0 else "GREEN")),
-        "actionableSummary": (
-            "HIGH RISK: Disproportionate expenditure, prolonged dormancy, or non-compliance detected. Flagged for urgent administrative inquiry."
-            if final_alert_cat == "RED"
-            else (
-                "MODERATE ATTENTION: Project reflects timeline variances, pending documentation, or technical discrepancies requiring nodal review."
-                if final_alert_cat == "YELLOW"
-                else "LOW RISK: Project conforms to statutory milestones, verified photographic evidence, and approved expenditure schedules."
-            )
-        ),
+        "alertCategory": final_alert_cat,
+        "actionableSummary": unique_summary,
+        "primaryRiskReason": unique_summary,
+        "officerDirectives": unique_directives,
         "fusion": ml_eval.get("fusion"),
         "fusionSummary": ml_eval.get("fusionSummary", {}),
         "workflowStatus": p["workflow_status"] or "OPEN",

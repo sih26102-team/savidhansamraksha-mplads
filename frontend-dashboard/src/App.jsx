@@ -1731,17 +1731,17 @@ function CategoryProjectIllustration({ category, workId, hasAnomaly, isGpsBad, i
 
       {/* Top HUD Telemetry */}
       <rect x="25" y="24" width="240" height="20" rx="3" fill="rgba(9, 28, 43, 0.85)" stroke="rgba(255,255,255,0.1)" strokeWidth="0.8" />
-      <text x="33" y="38" fill="#64b5f6" fontSize="8" fontFamily="monospace" fontWeight="bold">SITE HUD // CADASTRE PARCEL #284</text>
+      <text x="33" y="38" fill="#64b5f6" fontSize="8" fontFamily="monospace" fontWeight="bold">SITE LOCATION // VERIFIED GROUND PIN</text>
 
-      <rect x="420" y="24" width="195" height="20" rx="3" fill="rgba(9, 28, 43, 0.85)" stroke="rgba(255,255,255,0.1)" strokeWidth="0.8" />
-      <text x="428" y="38" fill="#ffd54f" fontSize="8" fontFamily="monospace" fontWeight="bold">PHASH: 8f3a9c2b4d1e0f6a</text>
+      <rect x="400" y="24" width="215" height="20" rx="3" fill="rgba(9, 28, 43, 0.85)" stroke="rgba(255,255,255,0.1)" strokeWidth="0.8" />
+      <text x="408" y="38" fill="#ffd54f" fontSize="8" fontFamily="monospace" fontWeight="bold">PHOTO CHECK: UNIQUE (NO DUPLICATE)</text>
 
       {/* Anomaly Detection Scanners */}
       {isGpsBad && (
         <g>
           <rect x="0" y="0" width="640" height="360" fill="rgba(211, 47, 47, 0.22)" />
           <rect x="15" y="12" width="610" height="32" rx="4" fill="rgba(183, 28, 28, 0.95)" stroke="#ff8a80" strokeWidth="1" />
-          <text x="30" y="33" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="sans-serif">🚨 GEOFENCE BREACH DETECTED: COORDINATES OUTSIDE CONSTITUENCY BOUNDARY</text>
+          <text x="30" y="33" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="sans-serif">🚨 LOCATION ALERT: COORDINATES OUTSIDE DESIGNATED WORK SITE</text>
         </g>
       )}
 
@@ -1749,14 +1749,14 @@ function CategoryProjectIllustration({ category, workId, hasAnomaly, isGpsBad, i
         <g>
           <rect x="0" y="0" width="640" height="360" fill="rgba(230, 81, 0, 0.22)" />
           <rect x="15" y="12" width="610" height="32" rx="4" fill="rgba(191, 54, 12, 0.95)" stroke="#ffcc80" strokeWidth="1" />
-          <text x="30" y="33" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="sans-serif">🚨 COMPUTER VISION ALERT: REUSED / DUPLICATE GROUND PHOTO (pHash Collision)</text>
+          <text x="30" y="33" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="sans-serif">🚨 PHOTO INTEGRITY ALERT: DUPLICATE GROUND PHOTO REUSED ACROSS CLAIMS</text>
         </g>
       )}
 
       {isExifBad && !isGpsBad && !isDupBad && (
         <g>
           <rect x="15" y="12" width="610" height="32" rx="4" fill="rgba(245, 127, 23, 0.92)" stroke="#fff59d" strokeWidth="1" />
-          <text x="30" y="33" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="sans-serif">⚠️ EXIF WARNING: CAMERA METADATA REMOVED BY MESSAGING COMPRESSION</text>
+          <text x="30" y="33" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="sans-serif">⚠️ PHOTO ADVISORY: ORIGINAL CAMERA & GPS METADATA NOT PRESENT</text>
         </g>
       )}
     </svg>
@@ -1785,9 +1785,9 @@ function ProjectVisualCard({ photo, category, workId, title, district }) {
                     <span style={{ fontSize: '10px', color: '#5a7a8a' }}>by {photo.uploader || 'Field Inspector'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    <PhotoBadge label="GPS" value={photo.gpsStatus || 'Verified'} ok={!isGpsBad} />
-                    <PhotoBadge label="EXIF" value={photo.exifStatus || 'Valid'} ok={!isExifBad} />
-                    <PhotoBadge label="Duplicate" value={photo.duplicateStatus || 'Unique'} ok={!isDupBad} />
+                    <PhotoBadge label="GPS" value={isGpsBad ? 'GPS: Outside Site' : 'GPS: Site Matched'} ok={!isGpsBad} />
+                    <PhotoBadge label="Metadata" value={isExifBad ? 'Camera: Tags Missing' : 'Camera: Verified'} ok={!isExifBad} />
+                    <PhotoBadge label="Duplicate" value={isDupBad ? 'Photo: Duplicate Flagged' : 'Photo: Unique Verified'} ok={!isDupBad} />
                 </div>
             </div>
 
@@ -1802,10 +1802,10 @@ function ProjectVisualCard({ photo, category, workId, title, district }) {
                 {/* Telemetry HUD Bar */}
                 <div style={{ position: 'absolute', bottom: '8px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'none', background: 'rgba(5, 15, 25, 0.85)', backdropFilter: 'blur(4px)', padding: '5px 12px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexWrap: 'wrap', gap: '4px' }}>
                     <div style={{ fontSize: '10px', fontFamily: 'monospace', color: isGpsBad ? '#ff8a80' : '#91bacf' }}>
-                        📍 {isGpsBad ? 'LAT 28.6139° N, LON 77.2090° E [GEOFENCE BREACH]' : 'LAT 12.9716° N, LON 77.5946° E [CONSTITUENCY MATCH]'}
+                        📍 {isGpsBad ? 'GEO-STAMP: OUTSIDE SANCTIONED WORK SITE' : `GEO-STAMP: VERIFIED ON-SITE (${district || 'CONSTITUENCY'})`}
                     </div>
                     <div style={{ fontSize: '10px', fontFamily: 'monospace', color: isExifBad ? '#ffd54f' : '#91bacf' }}>
-                        📸 EXIF: {isExifBad ? 'STRIPPED (WHATSAPP COMPRESSION)' : 'VALID SONY ILCE-7M4 · 35mm f/2.8'}
+                        📸 {isExifBad ? 'METADATA: COMPRESSED / NO TIMESTAMPS' : 'TIMESTAMP & CAMERA: VERIFIED VALID'}
                     </div>
                 </div>
             </div>
@@ -2143,7 +2143,7 @@ function ProjectSatelliteCard({ satVer: initialSatVer, satScore: initialSatScore
 
   const statusColor = isGhost ? '#e07a5f' : isUnauthorized ? '#f0a050' : isCloudy ? '#8ca1b3' : '#68c298';
   const statusBorder = isGhost ? '#7d3830' : isUnauthorized ? '#7d5830' : isCloudy ? '#2a445a' : '#1e523f';
-  const statusLabel = isGhost ? 'FLAGGED: GHOST PROJECT (NO PHYSICAL WORK)' : isUnauthorized ? 'FLAGGED: UNREPORTED CONSTRUCTION' : isCloudy ? 'INCONCLUSIVE: PERSISTENT CLOUD COVER' : 'VERIFIED: PHYSICAL GROUND EVIDENCE CONFIRMED';
+  const statusLabel = isGhost ? 'FLAGGED: ZERO GROUND WORK DETECTED' : isUnauthorized ? 'FLAGGED: UNREPORTED GROUND WORK' : isCloudy ? 'OVERCAST: SATELLITE VIEW CLOUDED' : 'VERIFIED: GROUND WORK CONFIRMED';
 
   return (
     <div className="visual-evidence-card" style={{ background: '#071622', borderRadius: '8px', border: `1px solid ${statusBorder}`, overflow: 'hidden', marginBottom: '16px' }}>
@@ -2151,10 +2151,10 @@ function ProjectSatelliteCard({ satVer: initialSatVer, satScore: initialSatScore
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#0a1e30', borderBottom: '1px solid #16344d', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#62cfbe' }}>
-            <Satellite size={14} /> Copernicus Sentinel-2 MSI Multi-Spectral
+            <Satellite size={14} /> Satellite Earth Observation
           </span>
-          <span style={{ fontSize: '10px', color: '#7b8d9a' }}>· 10m Ground Sample Distance (GSD)</span>
-          <span style={{ fontSize: '10px', color: '#5a7a8a' }}>ESA COPERNICUS/S2_SR_HARMONIZED</span>
+          <span style={{ fontSize: '10px', color: '#7b8d9a' }}>· 10m High-Resolution Imagery</span>
+          <span style={{ fontSize: '10px', color: '#5a7a8a' }}>Dual-Date Surface Change Verification</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button 
@@ -2179,12 +2179,12 @@ function ProjectSatelliteCard({ satVer: initialSatVer, satScore: initialSatScore
             {scanning ? (
               <>
                 <RefreshCw size={12} className="animate-spin" />
-                <span>Acquiring Orbit ({Math.round(scanProgress)}%)...</span>
+                <span>Scanning Site ({Math.round(scanProgress)}%)...</span>
               </>
             ) : (
               <>
                 <Orbit size={13} />
-                <span>Run Live Sentinel-2 Scan</span>
+                <span>Run Live Satellite Scan</span>
               </>
             )}
           </button>
@@ -2211,10 +2211,10 @@ function ProjectSatelliteCard({ satVer: initialSatVer, satScore: initialSatScore
           {/* Telemetry HUD Bar */}
           <div style={{ position: 'absolute', bottom: '8px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'none', background: 'rgba(4, 14, 24, 0.88)', backdropFilter: 'blur(4px)', padding: '5px 12px', borderRadius: '4px', border: '1px solid rgba(42, 168, 152, 0.2)', flexWrap: 'wrap', gap: '4px' }}>
             <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#88e2b8' }}>
-              📍 ROI BUFFER: 100m POINT RADIUS (LAT {(lat || 17.6868).toFixed(4)}° N, LON {(lon || 83.2185).toFixed(4)}° E)
+              📍 SITE PERIMETER: 100m RADIUS (LAT {(lat || 17.6868).toFixed(4)}° N, LON {(lon || 83.2185).toFixed(4)}° E)
             </div>
             <div style={{ fontSize: '10px', fontFamily: 'monospace', color: isCloudy ? '#8ca1b3' : '#62cfbe' }}>
-              📊 NDBI Δ: {ndbi >= 0 ? '+' : ''}{ndbi.toFixed(3)} · NDVI Δ: {ndvi >= 0 ? '+' : ''}{ndvi.toFixed(3)} · CLOUD: {cloudPct}%
+              📊 GROUND PROGRESS: {ndbi >= 0.05 ? 'CONSTRUCTION CONFIRMED' : isGhost ? 'NO VISIBLE CHANGE' : 'MINIMAL CHANGE'} · CLOUD: {cloudPct}%
             </div>
           </div>
         </div>
@@ -2422,7 +2422,7 @@ function ProjectDetailPage() {
                     color: alertCategory === 'RED' ? '#f07070' : alertCategory === 'YELLOW' ? '#e29a3a' : '#5ec9b5',
                     marginBottom: '2px'
                   }}>
-                    ACTIONABLE DECISION SUPPORT RECOMMENDATION
+                    PRIMARY RISK DRIVER / ROOT CAUSE & EXECUTIVE DIRECTIVE
                   </div>
                   <p style={{ margin: 0, fontSize: '12px', color: '#c0d0dc', lineHeight: '1.5' }}>
                     {actionableSummary}
