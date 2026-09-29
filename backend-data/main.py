@@ -451,10 +451,16 @@ def get_dashboard_totals(request: Request):
         params = [user["stateCode"]]
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         scope_filter = "WHERE district_id = %s"
-        params = [user["districtId"]]
-    elif user["role"] == "MP" and user["constituencyId"]:
-        scope_filter = "WHERE constituency_id = %s"
-        params = [user["constituencyId"]]
+    elif user["role"] == "MP":
+        if user.get("constituencyId"):
+            scope_filter = "WHERE constituency_id = %s"
+            params = [user["constituencyId"]]
+        elif user.get("districtId"):
+            scope_filter = "WHERE district_id = %s"
+            params = [user["districtId"]]
+        elif user.get("stateCode"):
+            scope_filter = "WHERE state_code = %s"
+            params = [user["stateCode"]]
 
     cur.execute(f"""
         SELECT 
@@ -497,10 +503,16 @@ def get_dashboard_summary(request: Request):
         params = [user["stateCode"]]
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         scope_filter = "WHERE p.district_id = %s"
-        params = [user["districtId"]]
-    elif user["role"] == "MP" and user["constituencyId"]:
-        scope_filter = "WHERE p.constituency_id = %s"
-        params = [user["constituencyId"]]
+    elif user["role"] == "MP":
+        if user.get("constituencyId"):
+            scope_filter = "WHERE p.constituency_id = %s"
+            params = [user["constituencyId"]]
+        elif user.get("districtId"):
+            scope_filter = "WHERE p.district_id = %s"
+            params = [user["districtId"]]
+        elif user.get("stateCode"):
+            scope_filter = "WHERE p.state_code = %s"
+            params = [user["stateCode"]]
 
     cur.execute(f"""
         SELECT 
@@ -626,9 +638,16 @@ def list_projects(
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         conditions.append("p.district_id = %s")
         params.append(user["districtId"])
-    elif user["role"] == "MP" and user["constituencyId"]:
-        conditions.append("p.constituency_id = %s")
-        params.append(user["constituencyId"])
+    elif user["role"] == "MP":
+        if user.get("constituencyId"):
+            conditions.append("p.constituency_id = %s")
+            params.append(user["constituencyId"])
+        elif user.get("districtId"):
+            conditions.append("p.district_id = %s")
+            params.append(user["districtId"])
+        elif user.get("stateCode"):
+            conditions.append("p.state_code = %s")
+            params.append(user["stateCode"])
 
     if search:
         conditions.append("(p.work_id ILIKE %s OR p.work_description ILIKE %s)")
@@ -708,9 +727,16 @@ def list_escalated_projects(request: Request):
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         conditions.append("p.district_id = %s")
         params.append(user["districtId"])
-    elif user["role"] == "MP" and user["constituencyId"]:
-        conditions.append("p.constituency_id = %s")
-        params.append(user["constituencyId"])
+    elif user["role"] == "MP":
+        if user.get("constituencyId"):
+            conditions.append("p.constituency_id = %s")
+            params.append(user["constituencyId"])
+        elif user.get("districtId"):
+            conditions.append("p.district_id = %s")
+            params.append(user["districtId"])
+        elif user.get("stateCode"):
+            conditions.append("p.state_code = %s")
+            params.append(user["stateCode"])
 
     where_clause = " AND ".join(conditions)
 
@@ -848,8 +874,8 @@ def get_project_detail(work_id: str, request: Request):
         "sanctionedAmount": float(p["sanctioned_amount"] or 0),
         "expenditure": float(p["expenditure_incurred"] or 0),
         "physicalProgress": float(p["physical_progress_pct"] or 0),
-        "riskScore": ml_eval["riskScore"],
-        "riskLevel": ml_eval["riskLevel"],
+        "riskScore": (final_risk_score := float(p["risk_score"]) if p.get("risk_score") is not None else float(ml_eval["riskScore"])),
+        "riskLevel": (final_risk_level := p["risk_level"] if p.get("risk_level") else ml_eval["riskLevel"]),
         "isolationForestScore": ml_eval.get("isolationForestScore"),
         "isolationForestStatus": ml_eval.get("isolationForestStatus"),
         "peerSampleCount": ml_eval.get("peerSampleCount"),
@@ -858,8 +884,16 @@ def get_project_detail(work_id: str, request: Request):
         "satelliteVerification": ml_eval.get("satelliteVerification"),
         "moduleScores": ml_eval.get("moduleScores", {}),
         "financialTemporalModule": ml_eval.get("financialTemporalModule", {}),
-        "alertCategory": ml_eval.get("alertCategory", "GREEN"),
-        "actionableSummary": ml_eval.get("actionableSummary", ""),
+        "alertCategory": (final_alert_cat := "RED" if (final_risk_score >= 70.0 or final_risk_level in ("HIGH", "CRITICAL")) else ("YELLOW" if final_risk_score >= 40.0 else "GREEN")),
+        "actionableSummary": (
+            "HIGH RISK: Disproportionate expenditure, prolonged dormancy, or non-compliance detected. Flagged for urgent administrative inquiry."
+            if final_alert_cat == "RED"
+            else (
+                "MODERATE ATTENTION: Project reflects timeline variances, pending documentation, or technical discrepancies requiring nodal review."
+                if final_alert_cat == "YELLOW"
+                else "LOW RISK: Project conforms to statutory milestones, verified photographic evidence, and approved expenditure schedules."
+            )
+        ),
         "fusion": ml_eval.get("fusion"),
         "fusionSummary": ml_eval.get("fusionSummary", {}),
         "workflowStatus": p["workflow_status"] or "OPEN",
@@ -1391,10 +1425,16 @@ def list_recent_audit(request: Request):
         params = [user["stateCode"]]
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         scope_filter = "WHERE p.district_id = %s"
-        params = [user["districtId"]]
-    elif user["role"] == "MP" and user["constituencyId"]:
-        scope_filter = "WHERE p.constituency_id = %s"
-        params = [user["constituencyId"]]
+    elif user["role"] == "MP":
+        if user.get("constituencyId"):
+            scope_filter = "WHERE p.constituency_id = %s"
+            params = [user["constituencyId"]]
+        elif user.get("districtId"):
+            scope_filter = "WHERE p.district_id = %s"
+            params = [user["districtId"]]
+        elif user.get("stateCode"):
+            scope_filter = "WHERE p.state_code = %s"
+            params = [user["stateCode"]]
 
     cur.execute(f"""
         SELECT a.id, a.work_id, COALESCE(u.full_name, a.user_id, 'Authority Officer') as user_name, a.role, a.action, a.timestamp, a.reason, a.from_status, a.to_status

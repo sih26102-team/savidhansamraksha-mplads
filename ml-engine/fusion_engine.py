@@ -229,11 +229,11 @@ class FusionEngine:
 
             finding = {
                 "severity": "HIGH",
-                "title": "Novel Out-of-Distribution Anomaly Detected (Unsupervised ML Outlier)",
+                "title": "Unusual Project Execution Pattern Flagged for Audit",
                 "explanation": (
-                    "The unsupervised Isolation Forest model detected a statistically anomalous pattern "
-                    "departing from regional peer baselines that does not match predefined rule templates. "
-                    "Surfaced for priority human investigative review."
+                    "Statistical audit detected an unusual combination of rapid payments, "
+                    "extended dormancy, or milestone delays compared to peer projects in this region. "
+                    "Surfaced for priority administrative review."
                 ),
                 "evidence": (
                     f"Unsupervised anomaly score: {round(isolation_forest_score, 1)}/100. "

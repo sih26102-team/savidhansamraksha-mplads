@@ -274,12 +274,11 @@ class FinancialTemporalEngine:
                 "severity": severity,
                 "title": f"Cost-Per-Unit Outlier (+{excess_pct}% above peer baseline)",
                 "explanation": (
-                    f"Sanction of ₹{cost:,.0f} exceeds district peer norm for '{category}' "
-                    f"by {excess_pct}% (Z-score: {z_score:.2f} sigma, adjusted for {terrain_label} logistics factor {tf}x)."
+                    f"Sanction of ₹{cost:,.0f} exceeds the district peer benchmark for '{category}' "
+                    f"by {excess_pct}% without documented technical justification."
                 ),
                 "evidence": (
-                    f"Project cost: ₹{cost:,.0f} | Peer average: ₹{mean_cost:,.0f} | "
-                    f"Terrain allowance factor: {tf:.2f}x | Statistical deviation: {z_score:.2f} sigma."
+                    f"Project cost: ₹{cost:,.0f} | Regional peer average: ₹{mean_cost:,.0f}."
                 ),
                 "module": "FINANCIAL_TEMPORAL",
                 "penalty": min(22.0, max(8.0, z_score * 6.0)),

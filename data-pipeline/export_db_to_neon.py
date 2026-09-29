@@ -75,6 +75,8 @@ DDL_STATEMENTS = [
         risk_level text,
         data_completeness text,
         workflow_status text,
+        latitude numeric DEFAULT 17.6868,
+        longitude numeric DEFAULT 83.2185,
         created_at timestamptz DEFAULT NOW(),
         updated_at timestamptz DEFAULT NOW()
     );""",
