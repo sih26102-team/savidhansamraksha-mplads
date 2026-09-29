@@ -957,7 +957,7 @@ def main() -> None:
             "estimatedCost": 5_000_000,
             "sanctionedAmount": 5_500_000,
             "expenditureIncurred": 4_800_000,
-            "physicalProgressPct": 42.0,
+            "physicalProgressPct": 15.0,
             "dateOfSanction": "2023-01-01T00:00:00Z",
             "expectedCompletionDate": "2024-01-01T00:00:00Z",
             "tenderInvited": True,
