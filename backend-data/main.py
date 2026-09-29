@@ -451,6 +451,7 @@ def get_dashboard_totals(request: Request):
         params = [user["stateCode"]]
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         scope_filter = "WHERE district_id = %s"
+        params = [user["districtId"]]
     elif user["role"] == "MP":
         if user.get("constituencyId"):
             scope_filter = "WHERE constituency_id = %s"
@@ -503,6 +504,7 @@ def get_dashboard_summary(request: Request):
         params = [user["stateCode"]]
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         scope_filter = "WHERE p.district_id = %s"
+        params = [user["districtId"]]
     elif user["role"] == "MP":
         if user.get("constituencyId"):
             scope_filter = "WHERE p.constituency_id = %s"
@@ -1555,6 +1557,7 @@ def list_recent_audit(request: Request):
         params = [user["stateCode"]]
     elif user["role"] == "DISTRICT_AUTHORITY" and user["districtId"]:
         scope_filter = "WHERE p.district_id = %s"
+        params = [user["districtId"]]
     elif user["role"] == "MP":
         if user.get("constituencyId"):
             scope_filter = "WHERE p.constituency_id = %s"
