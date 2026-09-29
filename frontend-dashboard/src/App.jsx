@@ -106,25 +106,12 @@ function RiskSpeedometerArc({ score, accentColor }) {
   return (
     <div className="risk-projection-gauge-box">
       <svg width="104" height="64" viewBox="0 0 104 64" style={{ overflow: 'visible' }}>
-        <defs>
-          <linearGradient id="speedometerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="40%" stopColor="#f59e0b" />
-            <stop offset="70%" stopColor="#f97316" />
-            <stop offset="100%" stopColor="#ef4444" />
-          </linearGradient>
-          <filter id="gaugeGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
-
         {/* Background Track */}
         <path
           d="M 12 56 A 40 40 0 0 1 92 56"
           fill="none"
-          stroke="rgba(255, 255, 255, 0.12)"
-          strokeWidth="9"
+          stroke="rgba(255, 255, 255, 0.08)"
+          strokeWidth="8"
           strokeLinecap="round"
         />
 
@@ -132,12 +119,11 @@ function RiskSpeedometerArc({ score, accentColor }) {
         <path
           d="M 12 56 A 40 40 0 0 1 92 56"
           fill="none"
-          stroke="url(#speedometerGrad)"
-          strokeWidth="9"
+          stroke={accentColor}
+          strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={totalLength}
           strokeDashoffset={dashOffset}
-          filter={clamped >= 70 ? "url(#gaugeGlow)" : undefined}
           style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
         />
       </svg>
@@ -145,11 +131,11 @@ function RiskSpeedometerArc({ score, accentColor }) {
       {/* Center Icon */}
       <div className="risk-projection-gauge-center">
         {clamped >= 70 ? (
-          <AlertOctagon size={22} style={{ color: accentColor, filter: 'drop-shadow(0 0 6px currentColor)' }} />
+          <AlertOctagon size={20} style={{ color: accentColor }} />
         ) : clamped >= 40 ? (
-          <AlertTriangle size={22} style={{ color: accentColor, filter: 'drop-shadow(0 0 6px currentColor)' }} />
+          <AlertTriangle size={20} style={{ color: accentColor }} />
         ) : (
-          <ShieldCheck size={22} style={{ color: accentColor, filter: 'drop-shadow(0 0 6px currentColor)' }} />
+          <ShieldCheck size={20} style={{ color: accentColor }} />
         )}
       </div>
     </div>
@@ -168,39 +154,36 @@ function RiskScoreProjectionHUD({ score, riskLevel, alertCategory, sanctionedAmo
   const badgeThemeClass = isRed ? 'risk-projection-badge-red' : isYellow ? 'risk-projection-badge-yellow' : 'risk-projection-badge-green';
   const scoreGlowClass = isRed ? 'risk-score-glow-red' : isYellow ? 'risk-score-glow-yellow' : 'risk-score-glow-green';
   const directiveThemeClass = isRed ? 'risk-directive-red' : isYellow ? 'risk-directive-yellow' : 'risk-directive-green';
-  const accentColor = isRed ? '#ef4444' : isYellow ? '#f59e0b' : '#10b981';
+  const accentColor = isRed ? '#f43f5e' : isYellow ? '#f59e0b' : '#2aa898';
 
   const badgeLabel = isCritical
-    ? 'CRITICAL AUDIT ESCALATION'
+    ? 'CRITICAL AUDIT ACTION'
     : isRed
-    ? 'HIGH ANOMALY THREAT'
+    ? 'HIGH AUDIT RISK'
     : isYellow
-    ? 'MODERATE RISK WATCH'
-    : 'VERIFIED CLEAR BENCHMARK';
+    ? 'MODERATE ATTENTION'
+    : 'LOW RISK · VERIFIED';
 
   const directiveText = isCritical
-    ? 'MANDATORY INTERVENTION: Disproportionate physical-expenditure divergence. Immediate site inspection & billing freeze advised.'
+    ? 'Immediate physical site inspection and measurement book verification required prior to further disbursements.'
     : isRed
-    ? 'PRIORITY SCRUTINY: Cross-module divergence flagged. Formal engineering review required.'
+    ? 'Cross-module telemetry variance flagged. Detailed technical and financial review required.'
     : isYellow
-    ? 'MONITORING ADVISORY: Milestone variance detected. Standard desk verification queue.'
-    : 'NOMINAL BENCHMARK: Telemetry conforms to regional peer baselines.';
+    ? 'Timeline or milestone variance detected. Scheduled for routine nodal officer review.'
+    : 'Project conforms to standard milestones, approved schedules, and photographic evidence.';
 
   return (
     <div className={`risk-projection-card ${cardThemeClass}`} data-testid="risk-score-projection-hud">
       {/* Top Header */}
       <div className="risk-projection-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="risk-beacon-wrap" style={{ color: accentColor }}>
-            <span className="risk-beacon-wave" />
-            <span className="risk-beacon-core" />
-          </span>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: accentColor, display: 'inline-block' }} />
           <span className={`risk-projection-badge ${badgeThemeClass}`}>
             {badgeLabel}
           </span>
         </div>
-        <span style={{ fontSize: '9px', fontFamily: 'var(--app-font-mono)', color: '#8fa5b5', letterSpacing: '0.08em', fontWeight: 600 }}>
-          VIGILANCE THREAT INDEX
+        <span style={{ fontSize: '9px', fontFamily: 'var(--app-font-mono)', color: '#94a3b8', letterSpacing: '0.08em', fontWeight: 600 }}>
+          ADMINISTRATIVE AUDIT INDEX
         </span>
       </div>
 
@@ -218,25 +201,26 @@ function RiskScoreProjectionHUD({ score, riskLevel, alertCategory, sanctionedAmo
             <span style={{
               fontSize: '9.5px',
               fontFamily: 'var(--app-font-mono)',
-              fontWeight: 800,
+              fontWeight: 700,
               padding: '2px 7px',
-              borderRadius: '3px',
-              background: isRed ? '#ef4444' : isYellow ? '#f59e0b' : '#10b981',
+              borderRadius: '4px',
+              background: accentColor,
               color: '#ffffff',
-              letterSpacing: '0.05em'
+              letterSpacing: '0.04em'
             }}>
               {(riskLevel || (isRed ? 'HIGH' : isYellow ? 'MODERATE' : 'LOW')).toUpperCase()} RISK
             </span>
-            <span style={{ fontSize: '10px', color: '#a0b3c2', fontFamily: 'var(--app-font-mono)' }}>
+            <span style={{ fontSize: '10px', color: '#94a3b8', fontFamily: 'var(--app-font-mono)' }}>
               · {materialityFactor ? Number(materialityFactor).toFixed(2) : '1.00'}x Materiality
             </span>
           </div>
         </div>
       </div>
 
-      {/* Graduated Threat Meter Bar */}
+      {/* Graduated Audit Meter Bar */}
       <div className="risk-threat-bar-wrap">
         <div className="risk-threat-bar-track">
+          <div className="risk-threat-bar-fill" style={{ width: `${clamped}%`, background: accentColor }} />
           <div className="risk-threat-bar-ticker" style={{ left: `${Math.min(99, Math.max(1, clamped))}%` }} />
         </div>
         <div className="risk-threat-bar-labels">
@@ -250,8 +234,8 @@ function RiskScoreProjectionHUD({ score, riskLevel, alertCategory, sanctionedAmo
 
       {/* Officer Directive Subtitle */}
       <div className={`risk-projection-directive ${directiveThemeClass}`}>
-        <AlertTriangle size={13} style={{ flexShrink: 0, color: accentColor }} />
-        <span><strong>Directive:</strong> {directiveText}</span>
+        <AlertTriangle size={13} style={{ flexShrink: 0, color: accentColor, marginTop: '1px' }} />
+        <span><strong style={{ color: '#f1f5f9' }}>Audit Directive:</strong> {directiveText}</span>
       </div>
     </div>
   );
